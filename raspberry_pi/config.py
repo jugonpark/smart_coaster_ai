@@ -19,6 +19,9 @@ FRAME_HEIGHT = 720
 TARGET_FPS = 30
 FLIP_HORIZONTAL = False
 DEFAULT_PX_PER_CM = 8.0
+TABLE_CALIBRATION_PATH = os.getenv(
+    "GRISE_TABLE_CALIBRATION", "calibration/table_calibration.json"
+)
 
 # ----- YOLO (carried over) -----
 YOLO_BACKEND = os.getenv("GRISE_YOLO_BACKEND", "ultralytics")  # ultralytics | roboflow | stub
@@ -36,6 +39,7 @@ ARUCO_DICT_NAME = "DICT_4X4_50"
 ROBOT_MARKER_ID = 0
 MARKER_SIZE_CM = 8.0
 MARKER_HEADING_OFFSET_DEG = 0.0
+ROBOT_MARKER_HEIGHT_CM = None  # unmeasured extension point; no 3D correction is applied
 ROBOT_POSE_EMA_ALPHA = 0.5
 
 # ----- Radar interface -----

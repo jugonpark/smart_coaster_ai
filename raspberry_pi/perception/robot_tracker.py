@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 import config
+from perception.table_calibration import TableCalibration
 
 
 def _wrap_pi(a: float) -> float:
@@ -20,8 +21,24 @@ def _wrap_pi(a: float) -> float:
 class WorldFrame:
     px_per_cm: float = config.DEFAULT_PX_PER_CM
     frame_height: int = config.FRAME_HEIGHT
+    calibration: TableCalibration | None = None
+    require_calibration: bool = False
+
+    @property
+    def valid(self) -> bool:
+        return not self.require_calibration or bool(self.calibration and self.calibration.valid)
+
+    @property
+    def calibrated(self) -> bool:
+        return bool(self.calibration and self.calibration.valid)
+
+    def validate_resolution(self, width: int, height: int) -> bool:
+        return (not self.require_calibration or
+                bool(self.calibration and self.calibration.matches_resolution(width, height)))
 
     def update_scale(self, px_per_cm: float) -> None:
+        if self.calibrated:
+            return
         if px_per_cm is None or not np.isfinite(px_per_cm) or px_per_cm <= 0:
             return
         if 0.5 * self.px_per_cm <= px_per_cm <= 2.0 * self.px_per_cm:
@@ -30,13 +47,32 @@ class WorldFrame:
             self.px_per_cm = px_per_cm
 
     def to_world(self, px_x: float, px_y: float) -> tuple[float, float]:
+        if self.calibrated:
+            return self.calibration.pixel_to_table(px_x, px_y)
+        if self.require_calibration:
+            raise ValueError("table calibration invalid")
         return px_x / self.px_per_cm, (self.frame_height - px_y) / self.px_per_cm
 
-    def to_pixel(self, world_x: float, world_y: float) -> tuple[int, int]:
+    def to_pixel(self, world_x: float, world_y: float) -> tuple[float, float]:
+        if self.calibrated:
+            return self.calibration.table_to_pixel(world_x, world_y)
+        if self.require_calibration:
+            raise ValueError("table calibration invalid")
         return int(round(world_x * self.px_per_cm)), int(round(self.frame_height - world_y * self.px_per_cm))
 
     def px_len_to_cm(self, px: float) -> float:
+        if self.calibrated:
+            raise ValueError("calibrated lengths require a pixel position")
+        if self.require_calibration:
+            raise ValueError("table calibration invalid")
         return px / self.px_per_cm
+
+    def bbox_to_table_radius(self, cx_px: float, cy_px: float,
+                             width_px: float, height_px: float) -> float:
+        if self.calibrated:
+            return self.calibration.bbox_to_table_radius(
+                cx_px, cy_px, width_px, height_px)
+        return self.px_len_to_cm(max(width_px, height_px) * 0.5)
 
 
 @dataclass
@@ -61,8 +97,8 @@ class MarkerScan:
 
 
 class MarkerScanner:
-    def __init__(self) -> None:
-        aruco_dict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, config.ARUCO_DICT_NAME))
+    def __init__(self, dictionary_name: str = config.ARUCO_DICT_NAME) -> None:
+        aruco_dict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary_name))
         params = cv2.aruco.DetectorParameters()
         params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
         self._detector = cv2.aruco.ArucoDetector(aruco_dict, params)
@@ -102,10 +138,17 @@ class RobotTracker:
             self._last = RobotPose()
             return self._last
 
-        world.update_scale(MarkerScan.side_px(target) / config.MARKER_SIZE_CM)
+        if not world.calibrated:
+            world.update_scale(MarkerScan.side_px(target) / config.MARKER_SIZE_CM)
         cx_px, cy_px = MarkerScan.center_px(target)
         x_cm, y_cm = world.to_world(cx_px, cy_px)
-        heading = MarkerScan.heading_rad(target, self._heading_offset)
+        if world.calibrated:
+            tl = world.to_world(float(target[0, 0]), float(target[0, 1]))
+            tr = world.to_world(float(target[1, 0]), float(target[1, 1]))
+            heading = _wrap_pi(math.atan2(tr[1] - tl[1], tr[0] - tl[0]) +
+                               self._heading_offset)
+        else:
+            heading = MarkerScan.heading_rad(target, self._heading_offset)
 
         a = config.ROBOT_POSE_EMA_ALPHA
         if self._last.detected:

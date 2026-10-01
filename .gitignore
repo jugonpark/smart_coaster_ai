@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 pytest-cache-files-*/
 .arduino-build/
+calibration/table_calibration.json

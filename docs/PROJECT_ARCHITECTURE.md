@@ -4,7 +4,7 @@
 
 Laptop은 USB 카메라를 HTTP MJPEG 8080으로 송출하고 Pi의 UDP 9001 상태를 표시한다. 위험 판단과 모터 제어는 하지 않는다.
 
-Raspberry Pi 5는 MJPEG 수신, ArUco/YOLO, radar 입력, 융합, 위험도, 회피 방향, 최종 안전 판단을 수행한다. ESP32에 UDP 8888로 `{seq,t,vx,vy,w,status}`를 보내고 UDP 8889 telemetry를 받는다. `vx/vy`는 cm/s, `w`는 rad/s, 상태는 `RUN/SLOW/STOP`이다. Radar UDP 8890은 현재 가짜 입력 경계다.
+Raspberry Pi 5는 MJPEG 수신, ArUco/YOLO, table-plane homography 좌표 변환, radar 입력, 융합, 위험도, 회피 방향, 최종 안전 판단을 수행한다. 실제 camera path는 calibration-required이며 누락·행렬 오류·해상도 불일치 시 vision UNKNOWN으로 정지한다. ESP32에 typed UDP 명령을 보내고 UDP 8889 telemetry를 받는다. Radar UDP 8890은 현재 가짜 입력 경계다.
 
 ESP32는 수신 속도를 3WD 역기구학·encoder PID·TB6612 출력으로 변환하고 telemetry를 보낸다. 명령 300 ms 단절, Wi-Fi 상실, 유효하지 않은 패킷, STOP은 모터 정지 조건이다. 위험도와 회피 방향은 계산하지 않는다.
 

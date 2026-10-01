@@ -145,7 +145,8 @@ class ObjectDetector:
         # 캐시를 쓰더라도 월드 좌표는 현재 스케일로 다시 계산한다.
         for d in self._cached:
             d.x_cm, d.y_cm = world.to_world(d.cx_px, d.cy_px)
-            d.radius_cm = world.px_len_to_cm(max(d.w_px, d.h_px) * 0.5)
+            d.radius_cm = world.bbox_to_table_radius(
+                d.cx_px, d.cy_px, d.w_px, d.h_px)
 
         return self._cached
 

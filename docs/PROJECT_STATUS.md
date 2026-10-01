@@ -7,7 +7,7 @@
 | A Pi Core Controller | SOFTWARE_VERIFIED | 독립 30 Hz/5 Hz 루프, snapshot, stale/예외/telemetry/자동 이동 OFF를 로컬 테스트로 확인. 실제 Pi 지연과 ESP32 watchdog 미검증 |
 | B Laptop Camera & Monitoring | SOFTWARE_VERIFIED | 카메라 실패·재연결/MJPEG/UDP 오류·만료/UI 종료를 가짜 장치와 루프백으로 검증. USB 카메라와 실제 네트워크 미검증 |
 | C ESP32 Motion Controller | SOFTWARE_VERIFIED | Modular typed controller, safety/protocol/motion model tests, ESP32 Core 3.3.12 compile 통과. 실제 board upload·motor·watchdog 실기 미검증 |
-| D Vision & Environment Perception | SOFTWARE_VERIFIED | VisionState·8방향·실패/신선도·좌표계 가짜 입력 테스트. 실제 카메라·ArUco·YOLO 실영상 미검증 |
+| D Vision & Environment Perception | SOFTWARE_VERIFIED | TABLE homography·16-corner mapping·robot heading·local bbox scale·invalid calibration fail-safe 합성 테스트. 실제 카메라·테이블 cm 오차·parallax·lens distortion 미검증 |
 | E Radar Perception | IN_PROGRESS | UDP fake/replay RadarState 경계 검증. 실제 firmware packet 명세·serial sample·parser가 없어 SAMPLE SERIAL FRAME REQUIRED |
 | F Sensor Fusion & Risk | SOFTWARE_VERIFIED | D/E snapshot의 유효성·신선도, 다중 target·sector·TTC·EMA/hold를 fake 입력으로 검증. 실제 radar 거리·부호·지연 교정 없음 |
 | G Escape Planning & Safety | SOFTWARE_VERIFIED | 8방향·UNKNOWN fallback·속도·Safety STOP 경계를 합성 입력으로 검증. 자동 모션 기본 OFF, 실기 미검증 |
@@ -54,6 +54,7 @@ PROJECT C 빌드: 설치된 Arduino CLI 1.5.1, Arduino-ESP32 3.3.11, ArduinoJson
 | 마커 유실과 검출기 실패를 빈 검출과 구분 | `perception/robot_tracker.py`, `object_detector.py`, `main.py` | 유실·빈 추론·예외 테스트 | ID 0, 8cm, 실제 마커 배치·가림 확인 |
 | 로봇 상대좌표와 8방향 CLEAR/BLOCKED/UNKNOWN | `perception/vision_state.py`, `config.py`, `fusion/sensor_fusion.py`, `main.py` | 8방향·경계각·거리·stale·NaN/INF 테스트 | 로봇 반경, 원근 오차, 실제 물체 sector 확인 |
 | 좌표·scale 가정 고정 | `docs/VISION_COORDINATES.md` | 코드·문서 대조 | 카메라/마커 현장 보정 |
+| 단일 px/cm를 TABLE homography로 교체 | `perception/table_calibration.py`, `robot_tracker.py`, `object_detector.py`, `main.py`, calibration tool | identity/perspective/round-trip/16-corner/heading/local radius/invalid·resolution fail-safe 합성 테스트 | 실제 marker 좌표 측정, 별도 validation point RMS/max 오차, 높이 parallax, lens distortion |
 
 PROJECT D는 카메라 없는 합성 입력과 전체 Python 테스트 및 구문 검사만으로 SOFTWARE_VERIFIED한다. 실장치 MJPEG, ArUco 및 모델 성능을 확인하기 전 HARDWARE_VERIFIED로 기록하지 않는다. A·B·C 상태는 SOFTWARE_VERIFIED로 유지한다.
 

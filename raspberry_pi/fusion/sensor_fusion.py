@@ -125,7 +125,8 @@ class SensorFusion:
                      math.isfinite(radar.timestamp) else None)
         pose = vision.robot
         pose_at = pose.timestamp if pose.timestamp is not None else vision.timestamp
-        vision_valid = (vision.camera_ok and vision.detector_available and pose.detected and
+        vision_valid = (vision.calibration_valid and vision.camera_ok and
+                        vision.detector_available and pose.detected and
                         vision_age is not None and 0 <= vision_age <= config.WORLD_STALE_S and
                         math.isfinite(pose_at) and 0 <= now - pose_at <= config.WORLD_STALE_S and
                         all(math.isfinite(v) for v in (pose.x_cm, pose.y_cm, pose.heading_rad)) and

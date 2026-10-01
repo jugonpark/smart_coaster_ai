@@ -33,6 +33,7 @@ class VisionState:
     timestamp: float
     robot: RobotPose
     detector_available: bool
+    calibration_valid: bool = True
     objects: list[RelativeObject] = field(default_factory=list)
     sectors: dict[str, str] = field(default_factory=lambda: dict.fromkeys(DIRECTIONS, "UNKNOWN"))
 
@@ -47,15 +48,16 @@ def sector_for(bearing_rad: float) -> str:
 
 def build_vision_state(*, camera_ok: bool, captured_at: float, robot: RobotPose,
                        detections: list[Detection], detector_available: bool,
-                       now: float) -> VisionState:
-    state = VisionState(camera_ok, captured_at, robot, detector_available)
+                       now: float, calibration_valid: bool = True) -> VisionState:
+    state = VisionState(camera_ok, captured_at, robot, detector_available,
+                        calibration_valid)
     fresh = (math.isfinite(captured_at) and captured_at <= now and
              now - captured_at <= config.WORLD_STALE_S)
     pose_at = robot.timestamp if robot.timestamp is not None else captured_at
     pose_valid = (robot.detected and math.isfinite(pose_at) and pose_at <= now and
                   now - pose_at <= config.WORLD_STALE_S and
                   all(math.isfinite(v) for v in (robot.x_cm, robot.y_cm, robot.heading_rad)))
-    if not camera_ok or not fresh or not pose_valid:
+    if not calibration_valid or not camera_ok or not fresh or not pose_valid:
         state.robot = RobotPose()
         return state
     if not detector_available:

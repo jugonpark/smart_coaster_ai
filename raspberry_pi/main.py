@@ -10,6 +10,8 @@ from core.shared_state import SharedState
 from fusion import SensorFusion
 from perception import NetworkCamera, ObjectDetector, RadarReceiver, RobotTracker, WorldFrame
 from perception.vision_state import build_vision_state
+from perception.table_calibration import TableCalibration
+from perception.robot_tracker import RobotPose
 
 
 def _build_detector():
@@ -34,6 +36,21 @@ def perception_step(camera, world_frame, robot_tracker, detector, radar, fusion,
         if captured_at > now or now - captured_at > config.WORLD_STALE_S:
             shared.publish_failure("camera frame stale", camera_ok=False)
             return False
+        calibration_valid = True
+        if world_frame is not None and getattr(world_frame, "require_calibration", False):
+            shape = getattr(frame, "shape", ())
+            calibration_valid = (len(shape) >= 2 and
+                                 world_frame.validate_resolution(shape[1], shape[0]))
+        if not calibration_valid:
+            vision = build_vision_state(
+                camera_ok=True, captured_at=captured_at, robot=RobotPose(),
+                detections=[], detector_available=False, now=time.monotonic(),
+                calibration_valid=False,
+            )
+            radar_state = radar.read()
+            world = fusion.build_from_states(vision, radar_state, now=time.monotonic())
+            shared.publish_world(world, captured_at=captured_at)
+            return True
         robot = robot_tracker.process(frame, world_frame)
         detector_available = bool(detector and getattr(detector, "available", detector.backend != "stub"))
         try:
@@ -49,6 +66,7 @@ def perception_step(camera, world_frame, robot_tracker, detector, radar, fusion,
             detections=detections,
             detector_available=detector_available,
             now=time.monotonic(),
+            calibration_valid=True,
         )
         radar_state = radar.read()
         world = fusion.build_from_states(vision, radar_state, now=time.monotonic())
@@ -63,7 +81,16 @@ def perception_step(camera, world_frame, robot_tracker, detector, radar, fusion,
 
 def main() -> None:
     camera = NetworkCamera()
-    world_frame = WorldFrame()
+    table_calibration = TableCalibration.load_optional(
+        config.TABLE_CALIBRATION_PATH, (config.FRAME_WIDTH, config.FRAME_HEIGHT)
+    )
+    if (table_calibration.valid and
+            table_calibration.aruco_dictionary != config.ARUCO_DICT_NAME):
+        table_calibration = TableCalibration.invalid(
+            config.FRAME_WIDTH, config.FRAME_HEIGHT,
+            reason="calibration ArUco dictionary mismatch",
+        )
+    world_frame = WorldFrame(calibration=table_calibration, require_calibration=True)
     robot_tracker = RobotTracker()
     detector = _build_detector()
     radar = RadarReceiver()
@@ -84,6 +111,8 @@ def main() -> None:
     print(f"[PI] camera={config.NETWORK_CAMERA_URL}")
     print(f"[PI] ESP32={config.ESP32_IP}:{config.ESP32_PORT}")
     print(f"[PI] automatic motion enabled={config.ENABLE_ESCAPE_MOTION}")
+    print(f"[PI] table calibration valid={world_frame.valid} "
+          f"reason={table_calibration.invalid_reason or 'OK'}")
 
     try:
         control_thread.start()

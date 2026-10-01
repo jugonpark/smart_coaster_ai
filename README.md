@@ -37,6 +37,7 @@ ESP32
 - Camera: 1280x720, 30FPS, no horizontal flip
 - YOLO: conf 0.45, imgsz 640, every 2 frames
 - ArUco: DICT_4X4_50, robot ID 0, marker 8cm, pose EMA 0.5
+- Vision coordinates: 4개 이상 고정 ArUco marker의 16-corner TABLE-plane homography; 실제 runtime은 calibration 필수
 - Risk initial thresholds: DANGER 15cm, WARN 35cm, approach 25cm/s, TTC 0.8/1.6s
 - Pi motion limit: 35cm/s, 1.8rad/s, accel 90cm/s^2
 - ESP32: DHCP, typed UDP 8888, telemetry 8889, command watchdog 300ms
@@ -99,6 +100,10 @@ Windows Firewall에서 Python의 UDP telemetry port 8889 수신을 허용해야 
 
 현재 firmware는 DHCP 전용이다. 최종 시연용 전용 공유기에서 고정 주소가 필요하면 `beginWiFi()`에 명시적으로 static 설정을 추가하고 `LOCAL_IP`, `GATEWAY`, `SUBNET`을 해당 공유기 대역에 맞춰 별도 검증해야 한다. 과거 `10.182.7.50` 값을 다른 네트워크에서 그대로 사용하면 안 된다.
 - Automatic escape motion is **disabled by default** until integration tests pass.
+
+## TABLE coordinate calibration
+
+모서리 상단의 기울어진 카메라는 단일 `px_per_cm`를 사용하지 않는다. 실제 marker 배치를 `calibration/table_layout.json`에 입력하고 `python tools/calibrate_table_homography.py --camera 0 --config calibration/table_layout.json`을 실행한다. 저장된 `calibration/table_calibration.json`은 장치별 파일이라 Git에서 제외된다. 자세한 좌표 convention, overlay click/grid 검사, fail-safe 및 실측 절차는 [VISION_COORDINATES](docs/VISION_COORDINATES.md)를 따른다.
 
 ## 중요
 

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "image_width": 1280,
+  "image_height": 720,
+  "aruco_dictionary": "DICT_4X4_50",
+  "markers": [
+    {"id": 41, "x_cm": -50.0, "y_cm": 30.0, "size_cm": 5.0, "orientation_deg": 0.0},
+    {"id": 42, "x_cm": 50.0, "y_cm": 30.0, "size_cm": 5.0, "orientation_deg": 0.0},
+    {"id": 43, "x_cm": 50.0, "y_cm": -30.0, "size_cm": 5.0, "orientation_deg": 0.0},
+    {"id": 44, "x_cm": -50.0, "y_cm": -30.0, "size_cm": 5.0, "orientation_deg": 0.0}
+  ],
+  "homography_image_to_table": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+  "homography_table_to_image": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+  "created_at": "EXAMPLE_ONLY_RECALIBRATE_FOR_HARDWARE",
+  "quality": {"rms_error_cm": 0.0, "max_error_cm": 0.0, "correspondence_count": 0}
+}
