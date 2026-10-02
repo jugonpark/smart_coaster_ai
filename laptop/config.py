@@ -1,9 +1,10 @@
 """GRISE laptop node configuration.
 
-Role: external USB camera sender + monitoring display only.
+Role: local or network camera sender + monitoring display only.
 The laptop does NOT make motion decisions.
 """
 import os
+from urllib.parse import urlsplit
 
 
 def _int(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -18,6 +19,23 @@ def _float(name: str, default: float) -> float:
     if not 0 < value < float("inf"):
         raise ValueError(f"{name} must be a finite positive number")
     return value
+
+CAMERA_SOURCE = os.getenv("GRISE_CAMERA_SOURCE", "local").strip().lower()
+CAMERA_URL = os.getenv("GRISE_CAMERA_URL", "").strip()
+if CAMERA_SOURCE not in ("local", "network"):
+    raise ValueError("GRISE_CAMERA_SOURCE must be 'local' or 'network'")
+if CAMERA_SOURCE == "network":
+    if not CAMERA_URL:
+        raise ValueError("GRISE_CAMERA_URL is required when GRISE_CAMERA_SOURCE=network")
+    parsed_camera_url = urlsplit(CAMERA_URL)
+    if parsed_camera_url.scheme not in ("http", "https") or not parsed_camera_url.hostname:
+        raise ValueError("GRISE_CAMERA_URL must be an HTTP(S) MJPEG stream URL")
+    if parsed_camera_url.hostname == "0.0.0.0":
+        raise ValueError("GRISE_CAMERA_URL host 0.0.0.0 is a bind address; use the Galaxy IP")
+    try:
+        parsed_camera_url.port
+    except ValueError as exc:
+        raise ValueError("GRISE_CAMERA_URL has an invalid port") from exc
 
 CAMERA_INDEX = _int("GRISE_CAMERA_INDEX", 0, 0, 32)
 FRAME_WIDTH = _int("GRISE_FRAME_WIDTH", 1280, 1, 8192)

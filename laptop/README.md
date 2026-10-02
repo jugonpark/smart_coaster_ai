@@ -1,6 +1,6 @@
 # GRISE Laptop Node
 
-역할은 **외부 USB 카메라 송신 + 모니터링**뿐입니다. 판단/경로계획/모터제어는 하지 않습니다.
+역할은 **USB 또는 Galaxy HTTP MJPEG 카메라 수신·재송출 + 모니터링**뿐입니다. 판단/경로계획/모터제어는 하지 않습니다.
 
 ## 실행
 
@@ -16,12 +16,36 @@ Pi의 상태 JSON은 UDP 9001로 이 노트북에 들어옵니다.
 
 초기 카메라 값은 기존 grise 코드와 동일하게 1280x720, 30 FPS, CAMERA_INDEX=0 입니다.
 
+### Windows PowerShell 카메라 선택
+
+환경변수를 지정하지 않으면 USB 카메라 index 0을 사용한다.
+
+```powershell
+$env:GRISE_CAMERA_SOURCE="local"
+$env:GRISE_CAMERA_INDEX="0"
+python laptop/main.py
+```
+
+Galaxy의 HTTP MJPEG 영상을 받으려면 Galaxy와 노트북을 서로 접속 가능한 Wi-Fi 또는 Galaxy hotspot에 연결하고, 카메라 앱에 표시된 **실제 Galaxy IP와 stream endpoint**를 사용한다.
+
+```powershell
+$env:GRISE_CAMERA_SOURCE="network"
+$env:GRISE_CAMERA_URL="http://192.168.x.x:8080/<actual-stream-path>"
+python laptop/main.py
+```
+
+앱의 `0.0.0.0:8080`은 앱이 기다리는 bind 주소이지 노트북이 접속할 주소가 아니다. Galaxy의 실제 IP와 `/video` 등 앱이 제공하는 정확한 경로를 확인한다. URL에 사용자 이름·암호나 query token이 있으면 프로그램 로그에서는 숨긴다. 현재 테스트는 노트북 Preview만으로 가능하며, 재송출 경로 `/health`, `/snapshot.jpg`, `/stream.mjpg`도 그대로 동작한다. 이후 Pi를 연결할 때는 `http://<노트북IP>:8080/stream.mjpg`를 사용한다.
+
+정상 연결 로그는 `[LAPTOP] camera source: NETWORK`, `[CAMERA] source=network`, `[CAMERA] opened`, `[CAMERA] connected; first frame=1280x720` 순서다. 접속 실패 시 `[CAMERA] network source offline; retrying`이 나오며 설정된 간격으로 다시 연결한다. 실제 수신 해상도는 Galaxy 앱 설정에 따라 다를 수 있다.
+
 ## 설정과 상태
 
 `laptop/config.py`의 기본값을 사용하며 아래 환경변수로 변경할 수 있습니다.
 
 | 환경변수 | 기본값 |
 |---|---|
+| `GRISE_CAMERA_SOURCE` | `local` (`local` 또는 `network`) |
+| `GRISE_CAMERA_URL` | 빈 값, `network`일 때 필수 |
 | `GRISE_CAMERA_INDEX` | `0` |
 | `GRISE_FRAME_WIDTH`, `GRISE_FRAME_HEIGHT` | `1280`, `720` |
 | `GRISE_CAMERA_FPS`, `GRISE_JPEG_QUALITY` | `30`, `80` |

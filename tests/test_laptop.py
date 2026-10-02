@@ -21,7 +21,8 @@ import monitor as laptop_monitor
 
 
 def laptop_settings(**updates):
-    values = dict(CAMERA_INDEX=0, FRAME_WIDTH=64, FRAME_HEIGHT=48, TARGET_FPS=30,
+    values = dict(CAMERA_SOURCE="local", CAMERA_URL="", CAMERA_INDEX=0,
+                  FRAME_WIDTH=64, FRAME_HEIGHT=48, TARGET_FPS=30,
                   JPEG_QUALITY=80, FLIP_HORIZONTAL=False, MJPEG_HOST="127.0.0.1",
                   MJPEG_PORT=0, CAMERA_RETRY_S=0.12, CAMERA_FRAME_STALE_S=0.5,
                   MONITOR_BIND_HOST="127.0.0.1",
@@ -49,6 +50,73 @@ class FakeCapture:
 
 
 class LaptopTests(unittest.TestCase):
+    def test_camera_source_config_defaults_and_validation(self):
+        path = ROOT / "laptop" / "config.py"
+
+        def load_config(values):
+            spec = importlib.util.spec_from_file_location("laptop_config_source_probe", path)
+            module = importlib.util.module_from_spec(spec)
+            with patch.dict(os.environ, values, clear=True):
+                spec.loader.exec_module(module)
+            return module
+
+        default = load_config({})
+        self.assertEqual((default.CAMERA_SOURCE, default.CAMERA_INDEX), ("local", 0))
+        self.assertEqual(load_config({"GRISE_CAMERA_SOURCE": "LOCAL",
+                                      "GRISE_CAMERA_INDEX": "2"}).CAMERA_INDEX, 2)
+        network = load_config({"GRISE_CAMERA_SOURCE": "NETWORK",
+                               "GRISE_CAMERA_URL": " http://192.168.43.1:8080/video "})
+        self.assertEqual((network.CAMERA_SOURCE, network.CAMERA_URL),
+                         ("network", "http://192.168.43.1:8080/video"))
+        for values in ({"GRISE_CAMERA_SOURCE": "other"},
+                       {"GRISE_CAMERA_SOURCE": "network"},
+                       {"GRISE_CAMERA_SOURCE": "network",
+                        "GRISE_CAMERA_URL": "http://0.0.0.0:8080/video"}):
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                load_config(values)
+
+    def test_network_camera_reopens_url_and_serves_first_frame(self):
+        class NetworkCapture(FakeCapture):
+            def set(self, *_):
+                raise AssertionError("network stream properties must not be changed")
+
+        broken, working = FakeCapture(False), NetworkCapture(True)
+        opened = []
+        url = "http://user:secret@192.168.43.1:8080/video?token=private"
+
+        def make_capture(source):
+            opened.append(source)
+            return broken if len(opened) == 1 else working
+
+        settings = laptop_settings(CAMERA_SOURCE="network", CAMERA_URL=url,
+                                   CAMERA_RETRY_S=0.02)
+        with patch.object(camera_streamer, "config", settings), patch.object(
+                camera_streamer.cv2, "VideoCapture", side_effect=make_capture), patch(
+                "builtins.print") as printed:
+            camera = camera_streamer.CameraStreamer()
+            try:
+                self.assertEqual(camera.camera_state, "CAMERA_OFFLINE")
+                camera.start()
+                deadline = time.monotonic() + 1
+                while camera.camera_state != "CAMERA_ONLINE" and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual(camera.camera_state, "CAMERA_ONLINE")
+                self.assertEqual(opened, [url, url])
+                self.assertEqual(camera.latest_frame().shape[:2], (48, 64))
+                base = f"http://127.0.0.1:{camera._server.server_address[1]}"
+                with urllib.request.urlopen(base + "/snapshot.jpg", timeout=2) as response:
+                    self.assertEqual(response.status, 200)
+                with urllib.request.urlopen(base + "/stream.mjpg", timeout=2) as response:
+                    self.assertIn("multipart/x-mixed-replace", response.headers["Content-Type"])
+                    self.assertIn(b"--frame", response.read(128))
+            finally:
+                camera.close()
+        log = "\n".join(str(call) for call in printed.call_args_list)
+        self.assertIn("source=network", log)
+        self.assertIn("first frame=64x48", log)
+        self.assertNotIn("secret", log)
+        self.assertNotIn("private", log)
+
     def test_camera_offline_then_reconnects_and_serves_mjpeg(self):
         broken, working = FakeCapture(False), FakeCapture(True)
         permit_reconnect = threading.Event()

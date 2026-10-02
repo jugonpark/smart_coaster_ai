@@ -13,6 +13,7 @@ def main() -> None:
     camera = None
     monitor = None
     try:
+        print(f"[LAPTOP] camera source: {getattr(config, 'CAMERA_SOURCE', 'local').upper()}")
         camera = CameraStreamer()
         monitor = MonitorReceiver()
         camera.start()

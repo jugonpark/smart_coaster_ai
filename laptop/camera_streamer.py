@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit, urlunsplit
 
 import cv2
 
@@ -21,28 +22,50 @@ class CameraStreamer:
         self._server_thread: threading.Thread | None = None
         self._server: ThreadingHTTPServer | None = None
         self.cap = None
+        self._first_frame_logged = False
         self._open_camera()
+
+    @staticmethod
+    def _safe_url(url: str) -> str:
+        parsed = urlsplit(url)
+        host = parsed.hostname or ""
+        if ":" in host:
+            host = f"[{host}]"
+        try:
+            port = f":{parsed.port}" if parsed.port is not None else ""
+        except ValueError:
+            port = ""
+        return urlunsplit((parsed.scheme, host + port, parsed.path, "", ""))
 
     def _open_camera(self) -> None:
         cap = None
+        source = getattr(config, "CAMERA_SOURCE", "local")
         try:
-            cap = cv2.VideoCapture(config.CAMERA_INDEX)
+            if source == "network":
+                print("[CAMERA] source=network")
+                print(f"[CAMERA] url={self._safe_url(config.CAMERA_URL)}")
+                cap = cv2.VideoCapture(config.CAMERA_URL)
+            else:
+                print(f"[CAMERA] source=local index={config.CAMERA_INDEX}")
+                cap = cv2.VideoCapture(config.CAMERA_INDEX)
             if not cap.isOpened():
                 cap.release()
                 self.cap = None
-                print(f"[CAMERA] offline: index={config.CAMERA_INDEX}; retrying")
+                print(f"[CAMERA] {source} source offline; retrying")
                 return
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
-            cap.set(cv2.CAP_PROP_FPS, config.TARGET_FPS)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            if source == "local":
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
+                cap.set(cv2.CAP_PROP_FPS, config.TARGET_FPS)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             self.cap = cap
-            print(f"[CAMERA] opened: index={config.CAMERA_INDEX}")
+            self._first_frame_logged = False
+            print("[CAMERA] opened")
         except Exception as exc:
             if cap is not None:
                 cap.release()
             self.cap = None
-            print(f"[CAMERA] open failed: {exc}")
+            print(f"[CAMERA] {source} source open failed ({type(exc).__name__}); retrying")
 
     @property
     def camera_state(self) -> str:
@@ -131,7 +154,7 @@ class CameraStreamer:
             try:
                 ok, frame = self.cap.read()
             except Exception as exc:
-                print(f"[CAMERA] read failed: {exc}")
+                print(f"[CAMERA] read failed ({type(exc).__name__})")
                 ok, frame = False, None
             if ok and frame is not None:
                 if config.FLIP_HORIZONTAL:
@@ -139,6 +162,10 @@ class CameraStreamer:
                 with self._lock:
                     self._frame = frame
                     self._frame_at = time.monotonic()
+                if not self._first_frame_logged:
+                    height, width = frame.shape[:2]
+                    print(f"[CAMERA] connected; first frame={width}x{height}")
+                    self._first_frame_logged = True
             else:
                 with self._lock:
                     self._frame = None
