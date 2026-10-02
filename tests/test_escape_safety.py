@@ -65,7 +65,7 @@ class EscapeSafetyTests(unittest.TestCase):
                          ("BACK", "BACK_LEFT", "BACK_RIGHT", "LEFT", "RIGHT",
                           "FRONT_LEFT", "FRONT_RIGHT", "FRONT"))
         self.assertEqual(plan.direction, "BACK_RIGHT")
-        self.assertEqual(plan.blocked_directions, ("BACK", "BACK_LEFT"))
+        self.assertEqual(plan.blocked_directions, ("BACK", "BACK_LEFT", "FRONT"))
         world = scene(0, {direction: "BLOCKED" for direction in
                           ("BACK", "BACK_LEFT", "BACK_RIGHT", "RIGHT")})
         self.assertEqual(EscapePlanner().plan(world, risk("DANGER"), now=NOW).direction, "LEFT")

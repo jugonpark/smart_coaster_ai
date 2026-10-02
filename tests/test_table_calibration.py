@@ -68,6 +68,11 @@ def test_missing_and_resolution_mismatch_are_invalid():
         path.unlink(missing_ok=True)
 
 
+def test_example_calibration_cannot_enable_motion():
+    example = ROOT / "calibration" / "table_calibration.example.json"
+    assert not TableCalibration.load_optional(example, (1280, 720)).valid
+
+
 def test_four_markers_provide_sixteen_corner_correspondences():
     markers = [
         MarkerDefinition(41, -50, 30, 4, 0), MarkerDefinition(42, 50, 30, 4, 0),

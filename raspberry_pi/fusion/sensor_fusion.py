@@ -55,6 +55,7 @@ class WorldState:
     sectors: dict[str, str] = field(default_factory=dict)
     threat: ThreatState = field(default_factory=ThreatState)
     radar_targets: tuple[RadarTarget, ...] = ()
+    hand_cup: object | None = None
 
     @property
     def approaching_target_present(self) -> bool:
@@ -126,7 +127,9 @@ class SensorFusion:
         pose = vision.robot
         pose_at = pose.timestamp if pose.timestamp is not None else vision.timestamp
         vision_valid = (vision.calibration_valid and vision.camera_ok and
-                        vision.detector_available and pose.detected and
+                        vision.hand_cup_available and
+                        (vision.detector_available or vision.hand_cup is not None) and
+                        pose.detected and
                         vision_age is not None and 0 <= vision_age <= config.WORLD_STALE_S and
                         math.isfinite(pose_at) and 0 <= now - pose_at <= config.WORLD_STALE_S and
                         all(math.isfinite(v) for v in (pose.x_cm, pose.y_cm, pose.heading_rad)) and
@@ -159,6 +162,10 @@ class SensorFusion:
             radar_valid = False
 
         sectors = dict(vision.sectors) if vision_valid else dict.fromkeys(DIRECTIONS, "UNKNOWN")
+        if vision_valid and radar_valid:
+            for target in targets:
+                if target.distance_cm - config.ROBOT_RADIUS_CM <= config.COLLISION_CHECK_DISTANCE_CM:
+                    sectors[sector_for(math.radians(target.angle_deg + config.RADAR_MOUNT_YAW_DEG))] = "BLOCKED"
         blocked = SectorState(**{
             attr: sectors[direction] != "CLEAR" for direction, attr in (
                 ("FRONT", "front"), ("FRONT_LEFT", "front_left"), ("LEFT", "left"),
@@ -184,7 +191,8 @@ class SensorFusion:
                                  primary.target_id, primary)
         obstacles = [item.detection for item in vision.objects if item.detection.role == "obstacle"]
         return WorldState(pose, radar.connected and radar_valid, primary, obstacles,
-                          blocked, vision_valid and radar_valid, vision,
+                          blocked, vision_valid and (radar_valid or config.ALLOW_MOTION_WITHOUT_RADAR), vision,
                           now, vision_valid, radar_valid, radar.status,
                           vision_age, radar_age, sectors, threat,
-                          tuple(targets) if radar_valid else ())
+                          tuple(targets) if radar_valid else (),
+                          hand_cup=vision.hand_cup if vision_valid else None)

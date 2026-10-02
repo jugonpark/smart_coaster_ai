@@ -83,6 +83,26 @@ GUI 프로세스는 nonzero `session_id` 하나를 생성하고 증가하는 `se
 
 Windows Firewall에서 Python의 UDP telemetry port 8889 수신을 허용해야 할 수 있다. `tools/esp32_udp_test.py`와 central controller는 모두 UDP 8889를 사용하므로 동시에 실행하지 않는다.
 
+### ESP32 유한거리 `cmd_move` 단독 시험
+
+바퀴를 공중에 띄운 상태에서 먼저 시험한다. Serial Monitor의 `STATUS`에서
+`MODE = NETWORK`, Wi-Fi 및 UDP 상태를 확인하고 실제 DHCP IP를 사용한다.
+다른 GUI나 UDP 테스트 프로그램이 telemetry 포트 8889를 점유하지 않도록 종료한다.
+저장소 루트의 Windows PowerShell에서 한 줄로 실행한다.
+
+```powershell
+python tools/esp32_cmd_move_test.py --ip 10.232.69.103 --vx 8 --vy 0 --w 0 --distance 10
+```
+
+IP는 예시다. `--timeout 10`(초)이 기본이며 필요하면 변경할 수 있다. 스크립트는
+typed STOP을 약 1초간 30Hz로 전송해 telemetry 응답을 확인한 뒤, 하나의
+`session_id`와 `motion_id`를 유지하면서 `cmd_move`를 30Hz로 반복한다.
+`goal_reached=true`를 받으면 성공으로 종료하고 STOP을 반복 전송한다.
+telemetry 중단, fault, 다른 motion ID, 잘못된 telemetry, 시간 초과 또는 Ctrl+C에도
+STOP을 반복 전송하고 실패한다. `tools/esp32_udp_test.py`는 기존 `cmd_vel`
+시험용으로 유지한다. 소프트웨어 검사만으로 실제 이동 거리나 정지 정확도가
+검증되지는 않는다.
+
 연결 직후 이벤트 로그의 `UDP 준비`에서 노트북 송신 IP와 ESP32 대상 IP를 확인한다. 현재 ESP32 설정은 `/24`(`255.255.255.0`)이므로 두 주소의 앞 세 옥텟이 다르면 같은 Wi-Fi 대역에 연결하고 IP/gateway 설정을 다시 확인한다. `ping` 성공만으로 대상이 ESP32라고 판단하지 않는다. 다른 망의 동일 IP 장비가 응답할 수 있고 ICMP 성공은 UDP 8888/8889 도달을 보장하지 않는다.
 
 텔레메트리가 없으면 GUI 로그의 STOP 송신·UDP 수신·정상·거부 건수와 Arduino Serial의 `UDP rx/accepted/rejected`를 함께 본다. ESP32 수신 누계가 0이면 네트워크 경로 문제이고, 수신은 증가하지만 거부가 증가하면 바로 위의 `[UDP RX] rejected reason=...`에서 JSON/필드/sequence 사유를 확인한다.

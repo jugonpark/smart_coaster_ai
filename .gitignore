@@ -5,3 +5,4 @@ __pycache__/
 pytest-cache-files-*/
 .arduino-build/
 calibration/table_calibration.json
+models/*.task

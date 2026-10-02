@@ -131,8 +131,8 @@ class RobotTracker:
         self._last = RobotPose()
         self._heading_offset = math.radians(config.MARKER_HEADING_OFFSET_DEG)
 
-    def process(self, frame, world: WorldFrame) -> RobotPose:
-        scan = self._scanner.scan(frame)
+    def process(self, frame, world: WorldFrame, scan: MarkerScan | None = None) -> RobotPose:
+        scan = self._scanner.scan(frame) if scan is None else scan
         target = scan.get(config.ROBOT_MARKER_ID)
         if target is None:
             self._last = RobotPose()

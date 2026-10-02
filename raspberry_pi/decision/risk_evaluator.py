@@ -21,6 +21,7 @@ class RiskState:
     reason: str = "no radar target"
     threat_direction: str | None = None
     timestamp: float | None = None
+    source: str = "RADAR"
 
 
 def classify_target(distance_cm: float, approach_speed_cm_s: float) -> tuple[str, str, float | None]:

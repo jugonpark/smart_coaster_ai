@@ -36,6 +36,12 @@ class VisionState:
     calibration_valid: bool = True
     objects: list[RelativeObject] = field(default_factory=list)
     sectors: dict[str, str] = field(default_factory=lambda: dict.fromkeys(DIRECTIONS, "UNKNOWN"))
+    hand_cup: object | None = None
+    hand_cup_available: bool = True
+    hands_count: int = 0
+    wrist_source: str = "NONE"
+    trigger_wrist_px: tuple[float, float] | None = None
+    frame_size: tuple[int, int] | None = None
 
 
 def sector_for(bearing_rad: float) -> str:
@@ -48,9 +54,11 @@ def sector_for(bearing_rad: float) -> str:
 
 def build_vision_state(*, camera_ok: bool, captured_at: float, robot: RobotPose,
                        detections: list[Detection], detector_available: bool,
-                       now: float, calibration_valid: bool = True) -> VisionState:
+                       now: float, calibration_valid: bool = True,
+                       hand_cup=None, hand_cup_available: bool = True) -> VisionState:
     state = VisionState(camera_ok, captured_at, robot, detector_available,
-                        calibration_valid)
+                        calibration_valid, hand_cup=hand_cup,
+                        hand_cup_available=hand_cup_available)
     fresh = (math.isfinite(captured_at) and captured_at <= now and
              now - captured_at <= config.WORLD_STALE_S)
     pose_at = robot.timestamp if robot.timestamp is not None else captured_at
@@ -60,10 +68,8 @@ def build_vision_state(*, camera_ok: bool, captured_at: float, robot: RobotPose,
     if not calibration_valid or not camera_ok or not fresh or not pose_valid:
         state.robot = RobotPose()
         return state
-    if not detector_available:
-        return state
-
-    sectors = dict.fromkeys(DIRECTIONS, "CLEAR")
+    # Missing YOLO means unobserved obstacle space, not missing marker objects.
+    sectors = dict.fromkeys(DIRECTIONS, "CLEAR" if detector_available else "UNKNOWN")
     try:
         for obj in detections:
             if not isinstance(obj, Detection):

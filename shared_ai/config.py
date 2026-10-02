@@ -1,0 +1,28 @@
+"""MediaPipe inference settings shared by Windows preview and Pi."""
+
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parents[1] / "models"
+POSE_MODEL_PATH = str(MODEL_DIR / "pose_landmarker_lite.task")
+HAND_MODEL_PATH = str(MODEL_DIR / "hand_landmarker.task")
+FACE_MODEL_PATH = str(MODEL_DIR / "face_landmarker.task")
+
+POSE_NUM_POSES = 1
+POSE_MIN_DETECTION_CONF = 0.5
+POSE_MIN_PRESENCE_CONF = 0.5
+POSE_MIN_TRACKING_CONF = 0.5
+POSE_MIN_VISIBILITY = 0.4
+
+HAND_NUM_HANDS = 2
+HAND_MIN_DETECTION_CONF = 0.5
+HAND_MIN_PRESENCE_CONF = 0.5
+HAND_MIN_TRACKING_CONF = 0.5
+GRIP_APERTURE_MIN = 0.55
+GRIP_APERTURE_MAX = 1.70
+GRIP_OPENNESS_MAX = 2.60
+
+FACE_MIN_DETECTION_CONF = 0.5
+FACE_MIN_PRESENCE_CONF = 0.5
+FACE_MIN_TRACKING_CONF = 0.5
+GAZE_FORWARD_SIGN = 1.0
+GAZE_CONE_DEG = 35.0

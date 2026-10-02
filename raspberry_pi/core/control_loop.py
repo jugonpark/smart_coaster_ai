@@ -8,6 +8,7 @@ from core.state_machine import ControlStateMachine
 from core.motion_goal import MotionGoals
 from decision import RiskEvaluator
 from decision.risk_evaluator import RiskState
+from decision.risk_arbiter import choose_risk
 from planning.escape_planner import EscapePlan, EscapePlanner
 from safety import SafetyManager
 from safety.safety_manager import MotionCommand
@@ -41,7 +42,9 @@ class ControlLoop:
                 risk = self.risk_eval.invalidate(health.reason, start)
             else:
                 world = state.world
-                risk = self.risk_eval.evaluate(world if world.vision is not None else world.radar_target)
+                radar_risk = self.risk_eval.evaluate(world if world.vision is not None else world.radar_target)
+                risk = (choose_risk(world, radar_risk, now=start)
+                        if world.vision is not None else radar_risk)
                 plan = self.planner.plan(world, risk)
                 command = self.safety.validate(
                     camera_ok=state.camera_ok, world=world, plan=plan,

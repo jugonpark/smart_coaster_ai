@@ -1,0 +1,2 @@
+# Install alongside laptop/requirements.txt to run tools/ai_overlay_preview.py.
+mediapipe>=0.10.30

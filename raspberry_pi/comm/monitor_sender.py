@@ -19,7 +19,6 @@ class MonitorSender:
         if now - self.last_send < self.min_interval:
             return
         target = world.radar_target
-        threat = getattr(world, "threat", None)
         radar_txt = "DISCONNECTED" if not world.radar_connected else (
             f"{target.distance_cm:.0f}cm {target.approach_speed_cm_s:.0f}cm/s" if target else "NO_TARGET"
         )
@@ -29,6 +28,11 @@ class MonitorSender:
             "camera": "ONLINE" if camera_ok else "OFFLINE",
             "robot": "TRACKED" if world.robot.detected else "LOST",
             "risk": risk.level,
+            "risk_source": getattr(risk, "source", None),
+            "hand_cup_distance_cm": getattr(getattr(world, "hand_cup", None), "distance_cm", None),
+            "trigger_wrist_side": getattr(getattr(world, "hand_cup", None), "trigger_wrist_side", None),
+            "cup_id1_detected": bool(getattr(world, "vision", None) and any(
+                item.detection.label == "cup" for item in world.vision.objects)),
             "radar": radar_txt,
             "escape": f"{plan.direction} {plan.target_distance_cm:.0f}cm",
             "command": f"{command.status} vx={command.vx:.1f} vy={command.vy:.1f} w={command.w:.2f}",
@@ -43,11 +47,11 @@ class MonitorSender:
             "risk_reason": getattr(risk, "reason", None),
             "vision_valid": getattr(world, "vision_valid", None),
             "radar_valid": getattr(world, "radar_valid", None),
-            "threat_detected": getattr(threat, "detected", None),
-            "threat_direction": getattr(threat, "direction", None),
-            "threat_distance_cm": getattr(threat, "distance_cm", None),
-            "threat_speed_cm_s": getattr(threat, "approach_speed_cm_s", None),
-            "ttc_s": getattr(threat, "ttc_s", None),
+            "threat_detected": risk.level in ("WARN", "DANGER"),
+            "threat_direction": getattr(risk, "threat_direction", None),
+            "threat_distance_cm": getattr(risk, "distance_cm", None),
+            "threat_speed_cm_s": getattr(risk, "approach_speed_cm_s", None),
+            "ttc_s": getattr(risk, "ttc_s", None),
             "escape_valid": getattr(plan, "valid", None),
             "escape_direction": getattr(plan, "direction", None),
             "escape_speed_cm_s": getattr(plan, "speed_cm_s", None),

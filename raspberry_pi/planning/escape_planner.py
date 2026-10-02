@@ -57,7 +57,9 @@ class EscapePlanner:
             return EscapePlan(reason="sensor state invalid", **base)
         modern = world.vision is not None
         if modern:
-            if (not world.vision_valid or not world.radar_valid or
+            if (not world.vision_valid or
+                    (not world.radar_valid and not (config.ALLOW_MOTION_WITHOUT_RADAR and
+                                                    risk.source == "HAND")) or
                     world.timestamp is None or not math.isfinite(world.timestamp) or
                     world.timestamp > now or now - world.timestamp > config.WORLD_STALE_S or
                     set(world.sectors) != set(DIRECTIONS) or
@@ -68,11 +70,11 @@ class EscapePlanner:
                     (not math.isfinite(risk.timestamp) or risk.timestamp > now or
                      now - risk.timestamp > config.WORLD_STALE_S)):
                 return EscapePlan(reason="RiskState stale", **base)
-            threat_direction = world.threat.direction
+            threat_direction = risk.threat_direction or world.threat.direction
         else:
             threat_direction = (sector_for(math.radians(world.radar_target.angle_deg))
                                 if world.radar_target is not None else None)
-        if threat_direction not in DIRECTIONS or world.radar_target is None:
+        if threat_direction not in DIRECTIONS or (not modern and world.radar_target is None):
             return EscapePlan(reason="threat direction unavailable", **base)
 
         preferred_index = (DIRECTIONS.index(threat_direction) + 4) % 8
@@ -88,12 +90,16 @@ class EscapePlanner:
             return EscapePlan(reason="all escape sectors blocked or unknown", **details)
 
         if risk.level == "DANGER":
-            speed = config.ESCAPE_SPEED_DANGER_CM_S
-            dist = config.ESCAPE_DISTANCE_DANGER_CM
+            speed = (config.HAND_ESCAPE_SPEED_DANGER_CM_S if risk.source == "HAND"
+                     else config.ESCAPE_SPEED_DANGER_CM_S)
+            dist = (config.HAND_ESCAPE_DISTANCE_DANGER_CM if risk.source == "HAND"
+                    else config.ESCAPE_DISTANCE_DANGER_CM)
             status = "RUN"
         else:
-            speed = config.ESCAPE_SPEED_WARN_CM_S
-            dist = config.ESCAPE_DISTANCE_WARN_CM
+            speed = (config.HAND_ESCAPE_SPEED_WARN_CM_S if risk.source == "HAND"
+                     else config.ESCAPE_SPEED_WARN_CM_S)
+            dist = (config.HAND_ESCAPE_DISTANCE_WARN_CM if risk.source == "HAND"
+                    else config.ESCAPE_DISTANCE_WARN_CM)
             status = "SLOW"
 
         angle = math.radians(_DIRS[chosen])

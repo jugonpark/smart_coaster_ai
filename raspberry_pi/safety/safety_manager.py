@@ -36,7 +36,8 @@ class SafetyManager:
         if modern:
             if not world.vision_valid or not world.vision.camera_ok or not world.vision.detector_available:
                 return MotionCommand(reason="vision invalid")
-            if not world.radar_valid:
+            if not world.radar_valid and not (config.ALLOW_MOTION_WITHOUT_RADAR and
+                                               risk is not None and risk.source == "HAND"):
                 return MotionCommand(reason="radar invalid")
             if (world.timestamp is None or not math.isfinite(world.timestamp) or
                     world.timestamp > now or now - world.timestamp > config.WORLD_STALE_S):

@@ -217,6 +217,8 @@ class TableCalibration:
     @classmethod
     def load(cls, path, runtime_resolution: tuple[int, int] | None = None) -> "TableCalibration":
         data = json.loads(Path(path).read_text(encoding="utf-8"))
+        if data.get("created_at") == "EXAMPLE_ONLY_RECALIBRATE_FOR_HARDWARE":
+            raise ValueError("example calibration is not a physical calibration")
         if data.get("version") != cls.VERSION:
             raise ValueError("unsupported calibration version")
         quality = data.get("quality") or {}
