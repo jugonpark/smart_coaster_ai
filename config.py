@@ -29,6 +29,8 @@ FLIP_HORIZONTAL = False
 
 # 마커가 안 잡힐 때 쓸 기본 스케일. 처음 한 번 실측해서 맞춰둘 것.
 DEFAULT_PX_PER_CM = 8.0
+TABLE_CALIBRATION_PATH = "calibration/table_calibration.json"
+CAMERA_FRAME_STALE_S = 0.5
 
 # =========================================================
 # 2) 인식 계층 - YOLO (Roboflow 학습 모델)

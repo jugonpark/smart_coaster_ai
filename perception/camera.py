@@ -11,51 +11,76 @@ RobotTracker가 update_scale()을 호출해 주고, 마커가 안 보이면 직�
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+import time
+from pathlib import Path
 
 import cv2
 import numpy as np
 
 import config
+from .table_calibration import TableCalibration
 
 
-@dataclass
 class WorldFrame:
-    """픽셀 <-> 월드(cm) 변환기. 프레임마다 스케일이 갱신될 수 있다."""
+    """Single TABLE-plane transform and live calibration validity owner."""
 
-    px_per_cm: float = config.DEFAULT_PX_PER_CM
-    frame_height: int = config.FRAME_HEIGHT
+    def __init__(self, calibration_path=None, calibration=None):
+        self.calibration = calibration
+        self._load_error = None
+        self._frame_error = "no frame received"
+        self._last_read_at = None
+        if calibration is None:
+            path = Path(calibration_path or config.TABLE_CALIBRATION_PATH)
+            try:
+                self.calibration = TableCalibration.load(path)
+            except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+                self._load_error = f"calibration unavailable: {exc}"
 
-    def update_scale(self, px_per_cm: float) -> None:
-        """ArUco 마커로부터 추정한 스케일로 갱신. 튀는 값은 무시한다."""
-        if px_per_cm is None or not np.isfinite(px_per_cm) or px_per_cm <= 0:
-            return
-        # 직전 값 대비 2배 이상 튀면 오검출로 보고 버린다.
-        if 0.5 * self.px_per_cm <= px_per_cm <= 2.0 * self.px_per_cm:
-            # 완만하게 따라가도록 EMA
-            self.px_per_cm = 0.8 * self.px_per_cm + 0.2 * px_per_cm
+    def observe_frame(self, frame_shape, read_at=None):
+        self._last_read_at = time.monotonic() if read_at is None else read_at
+        if self.calibration is None:
+            self._frame_error = self._load_error or "calibration unavailable"
+        elif (len(frame_shape) < 2 or
+              (frame_shape[1], frame_shape[0]) !=
+              (self.calibration.image_width, self.calibration.image_height)):
+            self._frame_error = "calibration resolution mismatch"
         else:
-            self.px_per_cm = px_per_cm
+            self._frame_error = None
 
-    # ---- 변환 ----
+    def invalidate_frame(self, reason):
+        self._frame_error = str(reason)
+        self._last_read_at = None
+
+    def can_send_motion(self, now=None):
+        now = time.monotonic() if now is None else now
+        return (self.calibration is not None and self._frame_error is None and
+                self._last_read_at is not None and
+                0 <= now - self._last_read_at <= config.CAMERA_FRAME_STALE_S)
+
+    @property
+    def invalid_reason(self):
+        if self._load_error:
+            return self._load_error
+        if self._frame_error:
+            return self._frame_error
+        if not self.can_send_motion():
+            return "camera frame stale"
+        return None
+
+    @property
+    def valid(self):
+        return self.can_send_motion()
+
     def to_world(self, px_x: float, px_y: float) -> tuple[float, float]:
-        return (
-            px_x / self.px_per_cm,
-            (self.frame_height - px_y) / self.px_per_cm,
-        )
+        if self.calibration is None:
+            raise ValueError(self.invalid_reason)
+        return self.calibration.pixel_to_table(px_x, px_y)
 
-    def to_pixel(self, world_x: float, world_y: float) -> tuple[int, int]:
-        return (
-            int(round(world_x * self.px_per_cm)),
-            int(round(self.frame_height - world_y * self.px_per_cm)),
-        )
-
-    def to_world_vec(self, px_dx: float, px_dy: float) -> tuple[float, float]:
-        """변위 벡터 변환 (Y 부호 반전만 적용, 평행이동 없음)."""
-        return (px_dx / self.px_per_cm, -px_dy / self.px_per_cm)
-
-    def px_len_to_cm(self, px: float) -> float:
-        return px / self.px_per_cm
+    def to_pixel(self, world_x: float, world_y: float) -> tuple[float, float]:
+        if self.calibration is None:
+            raise ValueError(self.invalid_reason)
+        return self.calibration.table_to_pixel(world_x, world_y)
 
 
 class Camera:
@@ -81,9 +106,11 @@ class Camera:
         """(ok, frame) 반환. frame은 BGR."""
         ok, frame = self.cap.read()
         if not ok:
+            self.world.invalidate_frame("camera read failed")
             return False, None
         if config.FLIP_HORIZONTAL:
             frame = cv2.flip(frame, 1)
+        self.world.observe_frame(frame.shape)
         return True, frame
 
     def release(self) -> None:
