@@ -131,7 +131,7 @@ class GazeTracker:
         lms = res.face_landmarks[0]
         if len(lms) > NOSE_TIP:
             n = lms[NOSE_TIP]
-            info.head_px = (n.x * config.FRAME_WIDTH, n.y * config.FRAME_HEIGHT)
+            info.head_px = (n.x * rgb_frame.shape[1], n.y * rgb_frame.shape[0])
             info.head_x_cm, info.head_y_cm = world.to_world(*info.head_px)
 
         mats = getattr(res, "facial_transformation_matrixes", None)

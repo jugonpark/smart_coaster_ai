@@ -66,15 +66,15 @@ class RobotTracker:
                 px=self._last.px,
             )
 
-        # --- 스케일 갱신: 네 변의 평균 픽셀 길이 / 실제 크기 ---
-        world.update_scale(MarkerScan.side_px(target) / config.MARKER_SIZE_CM)
-
         # --- 위치: 네 코너의 중심 ---
         cx_px, cy_px = MarkerScan.center_px(target)
         x_cm, y_cm = world.to_world(cx_px, cy_px)
 
         # --- heading: 위쪽 변 TL -> TR ---
-        heading = MarkerScan.heading_rad(target, self._heading_offset)
+        tl = world.to_world(*target[0])
+        tr = world.to_world(*target[1])
+        heading = _wrap_pi(math.atan2(tr[1] - tl[1], tr[0] - tl[0])
+                           + self._heading_offset)
 
         # --- EMA 스무딩 ---
         a = config.ROBOT_POSE_EMA_ALPHA

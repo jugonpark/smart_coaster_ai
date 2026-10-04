@@ -145,7 +145,7 @@ class HandTracker:
             info = HandInfo()
 
             # 화면 좌표 (그리기용)
-            info.px = [(l.x * config.FRAME_WIDTH, l.y * config.FRAME_HEIGHT)
+            info.px = [(l.x * rgb_frame.shape[1], l.y * rgb_frame.shape[0])
                        for l in lms]
             info.wrist_x_cm, info.wrist_y_cm = world.to_world(*info.px[WRIST])
 

@@ -96,13 +96,20 @@ class MarkerObjectDetector:
 
             # 화면 박스는 '마커 크기'가 아니라 '실제 회피 반경'을 그린다.
             # 그래야 로봇이 실제로 피하는 범위가 눈에 보인다.
-            size_px = 2.0 * radius_cm * world.px_per_cm
+            left = world.to_pixel(x_cm - radius_cm, y_cm)
+            right = world.to_pixel(x_cm + radius_cm, y_cm)
+            top = world.to_pixel(x_cm, y_cm + radius_cm)
+            bottom = world.to_pixel(x_cm, y_cm - radius_cm)
+            size_x = max(p[0] for p in (left, right, top, bottom)) - min(
+                p[0] for p in (left, right, top, bottom))
+            size_y = max(p[1] for p in (left, right, top, bottom)) - min(
+                p[1] for p in (left, right, top, bottom))
 
             out.append(Detection(
                 label=label,
                 confidence=1.0 if fresh else 0.5,
                 cx_px=cx_px, cy_px=cy_px,
-                w_px=size_px, h_px=size_px,
+                w_px=size_x, h_px=size_y,
                 x_cm=x_cm, y_cm=y_cm,
                 radius_cm=radius_cm,     # ★ 마커 크기가 아니라 설정값을 쓴다
             ))

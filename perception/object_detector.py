@@ -131,7 +131,16 @@ class ObjectDetector:
         # 캐시를 쓰더라도 월드 좌표는 현재 스케일로 다시 계산한다.
         for d in self._cached:
             d.x_cm, d.y_cm = world.to_world(d.cx_px, d.cy_px)
-            d.radius_cm = world.px_len_to_cm(max(d.w_px, d.h_px) * 0.5)
+            center = (d.x_cm, d.y_cm)
+            edges = ((d.cx_px - d.w_px / 2, d.cy_px),
+                     (d.cx_px + d.w_px / 2, d.cy_px),
+                     (d.cx_px, d.cy_px - d.h_px / 2),
+                     (d.cx_px, d.cy_px + d.h_px / 2))
+            transformed = [world.to_world(*point) for point in edges]
+            d.radius_cm = max(
+                ((point[0] - center[0]) ** 2 +
+                 (point[1] - center[1]) ** 2) ** 0.5
+                for point in transformed)
 
         return self._cached
 

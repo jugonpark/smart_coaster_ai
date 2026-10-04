@@ -142,8 +142,8 @@ class PoseTracker:
             pres = getattr(l, "presence", 1.0)
             if vis < config.POSE_MIN_VISIBILITY or pres < config.POSE_MIN_VISIBILITY:
                 return None
-            px_x = l.x * config.FRAME_WIDTH
-            px_y = l.y * config.FRAME_HEIGHT
+            px_x = l.x * rgb_frame.shape[1]
+            px_y = l.y * rgb_frame.shape[0]
             wx, wy = world.to_world(px_x, px_y)
             j = Joint(x_cm=wx, y_cm=wy, px=(px_x, px_y))
             by_index[idx] = j
