@@ -25,6 +25,7 @@ import cv2
 
 import config
 from .marker_scanner import MarkerScan, MarkerScanner
+from .table_drawing import cv_points, project_vector
 
 
 @dataclass
@@ -100,12 +101,11 @@ class RobotTracker:
         px = (int(pose.px[0]), int(pose.px[1]))
         cv2.circle(frame, px, 10, (255, 0, 255), -1)
         # heading 화살표 (월드 각도를 다시 픽셀 방향으로: y 부호 반전)
-        L = 60
-        tip = (
-            int(px[0] + L * math.cos(pose.heading_rad)),
-            int(px[1] - L * math.sin(pose.heading_rad)),
-        )
-        cv2.arrowedLine(frame, px, tip, (255, 0, 255), 3, tipLength=0.3)
+        start, end = project_vector(world, pose.x_cm, pose.y_cm,
+                                    math.cos(pose.heading_rad),
+                                    math.sin(pose.heading_rad), 8.0)
+        cv2.arrowedLine(frame, *cv_points((start, end)),
+                        (255, 0, 255), 3, tipLength=0.3)
         cv2.putText(
             frame,
             f"robot {math.degrees(pose.heading_rad):+.0f}deg",

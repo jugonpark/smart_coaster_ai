@@ -50,6 +50,7 @@ from perception import (
     PoseTracker,
     RobotTracker,
 )
+from perception.table_drawing import cv_points, project_vector
 from planning import PotentialField, heading_command, world_to_robot
 from safety import IncidentLogger
 from ui import SettingsPanel, load_tuning
@@ -75,7 +76,8 @@ RISK_COLOR = {
 
 # 화면 우상단 "SETTINGS" 버튼 영역 (x1, y1, x2, y2)
 # cv2.putText는 한글을 못 그리므로 영문으로 표기한다.
-BTN_RECT = (config.FRAME_WIDTH - 150, 8, config.FRAME_WIDTH - 10, 44)
+def button_rect(width):
+    return (width - 150, 8, width - 10, 44)
 
 
 def _in_rect(x, y, rect) -> bool:
@@ -84,7 +86,7 @@ def _in_rect(x, y, rect) -> bool:
 
 
 def draw_settings_button(frame, hovered: bool) -> None:
-    x1, y1, x2, y2 = BTN_RECT
+    x1, y1, x2, y2 = button_rect(frame.shape[1])
     bg = (70, 70, 70) if not hovered else (110, 110, 110)
     cv2.rectangle(frame, (x1, y1), (x2, y2), bg, -1)
     cv2.rectangle(frame, (x1, y1), (x2, y2), (200, 200, 200), 1)
@@ -131,12 +133,9 @@ def draw_hud(frame, world, robot, cup, obstacles, human, risk, field,
 
     # --- 속도 벡터 (월드 -> 픽셀) ---
     if config.DRAW_FIELD_VECTOR and robot.detected and field.speed > 0.5:
-        start = (int(robot.px[0]), int(robot.px[1]))
-        scale_px = world.px_per_cm * 1.0  # 1초 뒤 예상 이동량을 그린다
-        end = (
-            int(start[0] + field.vx_world * scale_px),
-            int(start[1] - field.vy_world * scale_px),
-        )
+        start, end = project_vector(world, robot.x_cm, robot.y_cm,
+                                    field.vx_world, field.vy_world)
+        start, end = cv_points((start, end))
         cv2.arrowedLine(frame, start, end, (0, 255, 0), 3, tipLength=0.25)
 
     # --- 텍스트 패널 ---
@@ -157,7 +156,7 @@ def draw_hud(frame, world, robot, cup, obstacles, human, risk, field,
     panel.append((
         f"robot {'OK ' if robot.detected else 'LOST'}  "
         f"heading {math.degrees(robot.heading_rad):+6.1f}deg  "
-        f"scale {world.px_per_cm:.2f}px/cm  {fps:4.1f}fps",
+        f"TABLE {('VALID' if world.valid else 'INVALID')}  {fps:4.1f}fps",
         (200, 200, 200), 0.45,
     ))
     if link:
@@ -235,13 +234,13 @@ def main() -> None:
     last_print_t = 0.0
 
     # 마우스로 SETTINGS 버튼을 누를 수 있게 한다.
-    mouse_state = {"hover": False}
+    mouse_state = {"hover": False, "rect": button_rect(config.FRAME_WIDTH)}
 
     # 로봇 위 컵 적재 판정: 경계값 근처에서 깜빡이지 않도록 hold를 둔다.
     cup_on_robot_state = {"last_true_t": -1e9}
 
     def on_mouse(event, x, y, flags, _param):
-        mouse_state["hover"] = _in_rect(x, y, BTN_RECT)
+        mouse_state["hover"] = _in_rect(x, y, mouse_state["rect"])
         if event == cv2.EVENT_LBUTTONDOWN and mouse_state["hover"]:
             panel.toggle()
 
@@ -392,6 +391,7 @@ def main() -> None:
             })
 
             if config.SHOW_WINDOW:
+                mouse_state["rect"] = button_rect(frame.shape[1])
                 if config.DRAW_POSE:
                     pose_tracker.draw(frame, human)
                 if hands is not None:
@@ -409,7 +409,7 @@ def main() -> None:
                          link=sender.link_text())
                 draw_settings_button(frame, mouse_state["hover"])
                 if paused:
-                    cv2.putText(frame, "PAUSED", (config.FRAME_WIDTH // 2 - 90, 60),
+                    cv2.putText(frame, "PAUSED", (frame.shape[1] // 2 - 90, 60),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 
                 # HUD까지 다 그려진 프레임을 넘긴다 - DANGER 시작 순간만 저장한다.

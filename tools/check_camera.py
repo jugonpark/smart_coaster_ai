@@ -99,7 +99,12 @@ def main() -> int:
 
     # ---------------- 각 계층 로드 (실패해도 계속) ----------------
     from perception.camera import WorldFrame
-    world = WorldFrame(frame_height=actual_h)
+    world = WorldFrame()
+    world.observe_frame(frame.shape)
+    if not world.valid:
+        print(f"  calibration invalid: {world.invalid_reason}")
+        cap.release()
+        return 1
 
     robot_tracker = None
     try:
@@ -179,6 +184,10 @@ def main() -> int:
 
         if config.FLIP_HORIZONTAL:
             frame = cv2.flip(frame, 1)
+        world.observe_frame(frame.shape)
+        if not world.valid:
+            print(f"calibration invalid: {world.invalid_reason}")
+            break
 
         now = time.time()
         dt = now - last_t
@@ -305,8 +314,8 @@ def main() -> int:
         cv2.rectangle(overlay, (0, 0), (frame.shape[1], 40 + 26 * len(lines)), (0, 0, 0), -1)
         frame = cv2.addWeighted(overlay, 0.45, frame, 0.55, 0)
 
-        cv2.putText(frame, f"{actual_w}x{actual_h}  {fps:.1f}fps  "
-                           f"scale={world.px_per_cm:.2f}px/cm",
+        cv2.putText(frame, f"{frame.shape[1]}x{frame.shape[0]}  {fps:.1f}fps  "
+                           "TABLE VALID",
                     (10, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6, WHITE, 1)
         y = 56
         for text, col in lines:
@@ -329,7 +338,7 @@ def main() -> int:
         panel.pump({
             "resolution": f"{actual_w}x{actual_h}",
             "FPS": f"{fps:.1f}",
-            "scale": f"{world.px_per_cm:.2f} px/cm",
+            "scale": "TABLE homography",
             **{f"L{i + 1}": t for i, (t, _c) in enumerate(lines)},
         })
 

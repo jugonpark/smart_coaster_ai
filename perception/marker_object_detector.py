@@ -30,10 +30,12 @@ import time
 from dataclasses import dataclass
 
 import cv2
+import numpy as np
 
 import config
 from .marker_scanner import MarkerScan, MarkerScanner
 from .object_detector import Detection
+from .table_drawing import project_circle
 
 
 @dataclass
@@ -119,11 +121,12 @@ class MarkerObjectDetector:
     def draw(self, frame, world, detections: list[Detection]) -> None:
         """실제 회피 반경을 원으로 표시 (마커 크기와 혼동하지 않도록)."""
         for d in detections:
-            r_px = int(d.radius_cm * world.px_per_cm)
             col = (0, 255, 255) if d.role == "cup" else (80, 80, 255)
             if d.confidence < 1.0:
                 col = (120, 120, 120)   # hold 중 (실제로는 안 보이는 상태)
-            cv2.circle(frame, (int(d.cx_px), int(d.cy_px)), r_px, col, 1)
+            points = np.rint(project_circle(world, d.x_cm, d.y_cm,
+                                            d.radius_cm)).astype(np.int32)
+            cv2.polylines(frame, [points], True, col, 1)
 
     @staticmethod
     def pick_cup(detections: list[Detection]) -> Detection | None:
