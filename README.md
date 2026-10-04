@@ -327,6 +327,18 @@ vᵢ = −sin(αᵢ)·vx + cos(αᵢ)·vy + L·w
 
 ## 튜닝 순서 (권장)
 
+Galaxy HTTP/MJPEG 영상을 PC에서 직접 사용할 때는 카메라 앱이 표시한 실제 주소를
+`GRISE_CAMERA_URL`에 지정한다. Windows 명령 프롬프트 예:
+
+```cmd
+set GRISE_CAMERA_URL=http://갤럭시IP:포트/영상경로
+python tools\check_camera.py
+```
+
+주소를 지정하지 않으면 기존 USB `CAMERA_INDEX`를 사용한다. 두 입력 모두
+`Camera.read()`에서 같은 BGR 프레임으로 전달된다. 보정 파일의 해상도 검증은
+설정값이 아닌 실제 수신 프레임 크기를 사용한다.
+
 1. **좌표계부터.** `YOLO_BACKEND="stub"`, ESP32 끄고 `main.py` 실행 → HUD에서 `scale px/cm`와 로봇 heading 화살표가 맞는지 확인. 마커를 돌려서 화살표가 같이 도는지 본다.
 2. **판단 계층.** 손을 컵에 천천히/빠르게 가져가며 HUD의 `hand-cup`, `approach`, `TTC` 값을 보고 `RISK_*` 임계값을 조정.
 3. **경로계산.** `tools/udp_monitor.py`로 속도벡터가 사람을 피해 도는지 확인. 사람에 너무 붙으면 `PF_K_REPULSE_HUMAN` ↑, 목표에 못 가면 `PF_K_ATTRACT` ↑.

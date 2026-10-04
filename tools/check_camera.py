@@ -71,23 +71,22 @@ def main() -> int:
     load_tuning()
 
     # ---------------- 카메라 ----------------
-    print(f"\n[카메라] 인덱스 {args.camera} 여는 중...")
-    cap = cv2.VideoCapture(args.camera)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-    if not cap.isOpened():
-        print(f"  실패: 카메라 {args.camera}번을 열 수 없습니다.")
+    config.CAMERA_INDEX = args.camera
+    print(f"\n[카메라] {config.CAMERA_URL or args.camera} 여는 중...")
+    from perception import Camera
+    try:
+        camera = Camera()
+    except (RuntimeError, ValueError) as exc:
+        print(f"  실패: {exc}")
         print("  - 다른 프로그램(줌/팀즈 등)이 카메라를 쓰고 있지 않은지 확인")
         print("  - Windows 설정 > 개인 정보 > 카메라 > 데스크톱 앱 액세스 허용 확인")
         print("  - 다른 인덱스로 시도:  python tools/check_camera.py --camera 1")
         return 1
 
-    ok, frame = cap.read()
+    ok, frame = camera.read()
     if not ok:
         print("  실패: 카메라는 열렸지만 프레임을 읽지 못했습니다.")
-        cap.release()
+        camera.release()
         return 1
 
     actual_h, actual_w = frame.shape[:2]
@@ -98,12 +97,11 @@ def main() -> int:
         print("     (좌표 변환이 이 값을 쓰기 때문에 안 맞으면 위치가 전부 틀어집니다)")
 
     # ---------------- 각 계층 로드 (실패해도 계속) ----------------
-    from perception.camera import WorldFrame
-    world = WorldFrame()
+    world = camera.world
     world.observe_frame(frame.shape)
     if not world.valid:
         print(f"  calibration invalid: {world.invalid_reason}")
-        cap.release()
+        camera.release()
         return 1
 
     robot_tracker = None
@@ -177,7 +175,7 @@ def main() -> int:
     shot_n = 0
 
     while True:
-        ok, frame = cap.read()
+        ok, frame = camera.read()
         if not ok:
             print("프레임 읽기 실패")
             break
@@ -366,7 +364,7 @@ def main() -> int:
             print(f"저장: {p.resolve()}")
 
     panel.close()
-    cap.release()
+    camera.release()
     cv2.destroyAllWindows()
     for t in (pose_tracker, hand_tracker, gaze_tracker):
         if t is not None:

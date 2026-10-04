@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import cv2
 import numpy as np
@@ -87,17 +88,22 @@ class Camera:
     """OpenCV VideoCapture 래퍼."""
 
     def __init__(self) -> None:
-        self.cap = cv2.VideoCapture(config.CAMERA_INDEX)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
-        self.cap.set(cv2.CAP_PROP_FPS, config.TARGET_FPS)
+        url = config.CAMERA_URL
+        if url:
+            parsed = urlsplit(url)
+            if parsed.scheme not in ("http", "https") or not parsed.hostname:
+                raise ValueError("GRISE_CAMERA_URL must be an HTTP(S) stream URL")
+        self.cap = cv2.VideoCapture(url if url else config.CAMERA_INDEX)
+        if not url:
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
+            self.cap.set(cv2.CAP_PROP_FPS, config.TARGET_FPS)
         # 버퍼가 쌓이면 지연이 생겨 실시간 제어에 치명적이다.
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         if not self.cap.isOpened():
             raise RuntimeError(
-                f"웹캠을 열 수 없습니다 (CAMERA_INDEX={config.CAMERA_INDEX}). "
-                "config.py의 CAMERA_INDEX를 확인하세요."
+                "카메라를 열 수 없습니다. GRISE_CAMERA_URL 또는 CAMERA_INDEX를 확인하세요."
             )
 
         self.world = WorldFrame()

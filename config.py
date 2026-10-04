@@ -18,7 +18,10 @@ D.I.G - 전역 설정
 # =========================================================
 # 1) 카메라 / 좌표 변환
 # =========================================================
+import os
+
 CAMERA_INDEX = 0
+CAMERA_URL = os.getenv("GRISE_CAMERA_URL", "").strip()
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
 TARGET_FPS = 30
