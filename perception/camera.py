@@ -1,13 +1,4 @@
-"""
-카메라 캡처 + 픽셀 <-> 월드 좌표 변환.
-
-월드 좌표계 정의는 config.py 상단 주석 참조.
-  world_x_cm = px_x / px_per_cm
-  world_y_cm = (FRAME_HEIGHT - px_y) / px_per_cm   # Y축을 위로 뒤집는다
-
-px_per_cm은 ArUco 로봇 마커의 실제 픽셀 크기로부터 매 프레임 갱신된다.
-RobotTracker가 update_scale()을 호출해 주고, 마커가 안 보이면 직전 값을 유지한다.
-"""
+"""USB/MJPEG capture and calibrated pixel↔TABLE-plane coordinates."""
 
 from __future__ import annotations
 
@@ -17,8 +8,6 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import cv2
-import numpy as np
-
 import config
 from .table_calibration import TableCalibration
 

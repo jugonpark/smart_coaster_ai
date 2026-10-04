@@ -128,7 +128,7 @@ class ObjectDetector:
             else:
                 self._cached = []
 
-        # 캐시를 쓰더라도 월드 좌표는 현재 스케일로 다시 계산한다.
+        # 캐시를 쓰더라도 현재 TABLE Homography로 좌표와 국소 반경을 계산한다.
         for d in self._cached:
             d.x_cm, d.y_cm = world.to_world(d.cx_px, d.cy_px)
             center = (d.x_cm, d.y_cm)

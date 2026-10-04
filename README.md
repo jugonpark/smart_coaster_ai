@@ -28,7 +28,7 @@ perception/               [1] 인식 계층
   pose_tracker.py           MediaPipe Pose → 손목 / 팔꿈치 / 어깨
   hand_tracker.py           MediaPipe Hand → 손 21점 스켈레톤 + 그립 모양
   gaze_tracker.py           MediaPipe Face → 머리 자세 (시선 대용)
-  robot_tracker.py          ArUco → 로봇 위치 + heading + 스케일 추정
+  robot_tracker.py          ArUco → 보정된 TABLE 위치 + heading
 
 decision/                 [2] 판단 계층
   risk_evaluator.py         손목-컵 거리 + 접근속도 + TTC → SAFE / WARN / DANGER
@@ -63,19 +63,15 @@ legacy/                   이전 빠름/느림 분류 프로토타입 (참고용
 
 세 계층이 전부 이 규약 위에서 동작한다. 여기가 어긋나면 로봇이 반대로 간다.
 
-**월드 좌표계** — 카메라 이미지 평면, 단위 cm, **Y축은 위쪽이 양수**
-
-```
-world_x = px_x / px_per_cm
-world_y = (FRAME_HEIGHT - px_y) / px_per_cm
-```
-
-`px_per_cm`은 매 프레임 ArUco 마커의 실제 픽셀 크기에서 추정된다
-(`config.MARKER_SIZE_CM`을 **반드시 실측값으로** 맞출 것).
+**월드 좌표계** — 테이블 평면의 cm. 원점은 테이블 중앙, +X는 오른쪽,
++Y는 위쪽이다. 영상의 픽셀은 ID 41–44로 생성한 Homography로 TABLE 좌표에
+투영한다. 역행렬로 TABLE 점을 영상에 다시 표시한다. 보정 파일이 없거나
+실제 수신 해상도가 다르면 이동 명령은 STOP이다.
 
 **로봇 heading** — 월드 +X축 기준 반시계(CCW) 양수.
 ArUco 마커의 위쪽 변 `TL→TR` 방향이 로봇 정면.
 실제 부착 방향이 다르면 `config.MARKER_HEADING_OFFSET_DEG`로 보정.
+두 corner를 각각 TABLE 좌표로 변환한 뒤 heading을 계산한다.
 
 **로봇 좌표계** — `vx` = 정면 전진, `vy` = 좌측 횡이동, `w` = 반시계 회전.
 
@@ -325,21 +321,40 @@ vᵢ = −sin(αᵢ)·vx + cos(αᵢ)·vy + L·w
 
 ---
 
-## 튜닝 순서 (권장)
+## 테이블 캘리브레이션과 카메라 연결
 
 Galaxy HTTP/MJPEG 영상을 PC에서 직접 사용할 때는 카메라 앱이 표시한 실제 주소를
 `GRISE_CAMERA_URL`에 지정한다. Windows 명령 프롬프트 예:
 
 ```cmd
 set GRISE_CAMERA_URL=http://갤럭시IP:포트/영상경로
-python tools\check_camera.py
+copy calibration\table_layout.example.json calibration\table_layout.json
+notepad calibration\table_layout.json
+python tools\calibrate_table_homography.py --config calibration\table_layout.json
 ```
 
-주소를 지정하지 않으면 기존 USB `CAMERA_INDEX`를 사용한다. 두 입력 모두
+ID 41–44의 실제 중심·검은 사각형 한 변·방향을 자로 재서 layout에 입력한다.
+예시의 65×40cm 책상과 5cm 마커 값은 근삿값이다. 보정 화면에서 네 마커와
+16개 corner, 10cm 격자, RMS/MAX를 확인하고, 사용하지 않은 테이블 지점을
+클릭해 실측 좌표와 비교한다. 유효한 결과면 `S`로 저장하고 `Q`로 종료한다.
+생성된 `calibration/table_calibration.json`은 장치별 파일이며 Git에서 제외한다.
+기본 런타임 허용치는 fit RMS ≤1cm, MAX ≤2cm다. 이 수치는 독립 실측 오차를
+대신하지 않는다.
+
+USB 카메라를 쓰면 `GRISE_CAMERA_URL`을 비워 기존 `CAMERA_INDEX`를 사용한다.
+두 입력 모두
 `Camera.read()`에서 같은 BGR 프레임으로 전달된다. 보정 파일의 해상도 검증은
 설정값이 아닌 실제 수신 프레임 크기를 사용한다.
 
-1. **좌표계부터.** `YOLO_BACKEND="stub"`, ESP32 끄고 `main.py` 실행 → HUD에서 `scale px/cm`와 로봇 heading 화살표가 맞는지 확인. 마커를 돌려서 화살표가 같이 도는지 본다.
+Homography는 **테이블 평면**에만 적용된다. 로봇 위 마커나 손목·팔꿈치 같은
+MediaPipe 관절은 테이블 위로 떠 있으므로, 표시된 cm 좌표는 테이블 평면에
+투영한 값이며 3D 지면 위치 보정값이 아니다. 카메라·줌·해상도·마커 배치가
+바뀌면 다시 보정한다. 실제 이동은 독립 지점 오차와 방향을 확인한 뒤 별도
+단계에서 시험한다.
+
+## 튜닝 순서 (권장)
+
+1. **좌표계부터.** ESP32를 끈 상태에서 보정 후 `tools/check_camera.py`를 실행해 TABLE 좌표와 로봇 heading 화살표를 확인한다.
 2. **판단 계층.** 손을 컵에 천천히/빠르게 가져가며 HUD의 `hand-cup`, `approach`, `TTC` 값을 보고 `RISK_*` 임계값을 조정.
 3. **경로계산.** `tools/udp_monitor.py`로 속도벡터가 사람을 피해 도는지 확인. 사람에 너무 붙으면 `PF_K_REPULSE_HUMAN` ↑, 목표에 못 가면 `PF_K_ATTRACT` ↑.
 4. **제어.** 로봇을 들어올린 상태로 PID 튜닝. `KP`부터 올리고 정상상태 오차가 남으면 `KI`, 진동하면 `KD`.

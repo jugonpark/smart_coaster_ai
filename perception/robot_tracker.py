@@ -4,16 +4,12 @@
 heading 정의
 ------------
 ArUco corners는 [TL, TR, BR, BL] 순서로 나온다.
-마커의 위쪽 변 (TL -> TR) 방향을 로봇 정면(+X_robot)으로 삼는다.
-월드 좌표계는 Y가 위로 뒤집혀 있으므로, 픽셀 벡터의 y 부호를 뒤집은 뒤
-atan2로 각도를 구하면 반시계(CCW) 양수인 표준 각도가 된다.
+마커의 TL과 TR을 각각 TABLE 좌표로 변환한 뒤 그 벡터를
+로봇 정면(+X_robot)으로 삼아 atan2로 반시계 heading을 계산한다.
 
 로봇에 마커를 붙인 방향이 다르면 config.MARKER_HEADING_OFFSET_DEG로 보정한다.
 
-부수 효과
----------
-마커의 실제 픽셀 크기를 알면 px_per_cm을 추정할 수 있다.
-매 프레임 WorldFrame.update_scale()을 호출해 스케일을 갱신한다.
+로봇 위 마커는 테이블보다 높을 수 있으므로 이 좌표는 평면 투영치다.
 """
 
 from __future__ import annotations

@@ -10,7 +10,7 @@ ArUco 마커 스캔 - 프레임당 한 번만 검출하고 여러 소비자가 �
 마커 하나에서 뽑는 정보
     center_px : 네 코너의 중심
     heading   : 위쪽 변(TL->TR) 방향. 월드 좌표계(Y 위쪽 +) 기준 반시계 양수
-    side_px   : 네 변의 평균 픽셀 길이 -> 실제 크기를 알면 px_per_cm 추정 가능
+    side_px   : 네 변의 평균 픽셀 길이 (중복 ID 선택용, 월드 스케일에는 사용하지 않음)
 """
 
 from __future__ import annotations

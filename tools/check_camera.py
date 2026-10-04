@@ -6,7 +6,7 @@ main.py는 모델이 하나라도 없으면 바로 종료된다. 이 도구는 �
 
 확인할 수 있는 것:
   - 웹캠이 열리는지, 실제 해상도가 config 설정과 맞는지
-  - ArUco 마커가 잡히는지, ID / heading / px_per_cm 스케일이 맞는지
+  - ArUco 마커가 잡히는지, ID / TABLE heading이 맞는지
   - 사람 관절(손목/팔꿈치/어깨)이 잡히는지
   - YOLO가 컵/장애물을 잡는지
   - 각 계층이 몇 ms씩 먹는지 (느리면 어디가 범인인지)
@@ -93,8 +93,8 @@ def main() -> int:
     print(f"  OK. 실제 해상도 {actual_w}x{actual_h}")
     if (actual_w, actual_h) != (config.FRAME_WIDTH, config.FRAME_HEIGHT):
         print(f"  ※ config 설정({config.FRAME_WIDTH}x{config.FRAME_HEIGHT})과 다릅니다.")
-        print(f"     config.py의 FRAME_WIDTH/HEIGHT를 {actual_w}/{actual_h}로 바꾸세요.")
-        print("     (좌표 변환이 이 값을 쓰기 때문에 안 맞으면 위치가 전부 틀어집니다)")
+        print("     좌표 변환은 실제 프레임 크기를 사용합니다.")
+        print("     calibration 파일이 이 해상도에서 생성됐는지 확인하세요.")
 
     # ---------------- 각 계층 로드 (실패해도 계속) ----------------
     world = camera.world

@@ -265,6 +265,12 @@ def main() -> None:
                 print("[경고] 프레임을 읽지 못했습니다. 재시도합니다.")
                 field_planner.reset()
                 sender.send(0, 0, 0, "STOP", force=True)
+                marker_detector._seen.clear()
+                if yolo_detector is not None:
+                    yolo_detector._cached.clear()
+                robot_tracker.reset()
+                risk_eval = RiskEvaluator()
+                cup_on_robot_state["last_true_t"] = -1e9
                 time.sleep(0.05)
                 continue
 

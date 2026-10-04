@@ -6,13 +6,10 @@ D.I.G - 전역 설정
 
 좌표계 정의 (매우 중요 - 모든 계층이 이 규약을 따른다)
 ---------------------------------------------------------
-  * 카메라는 작업 공간을 내려다보는 천장(오버헤드) 카메라를 가정한다.
-  * 월드 좌표 = 이미지 평면을 그대로 쓰되, 단위는 cm, Y축만 위로 뒤집는다.
-        world_x_cm = px_x / px_per_cm
-        world_y_cm = (FRAME_HEIGHT - px_y) / px_per_cm
-    -> X: 오른쪽, Y: 위쪽인 오른손 좌표계. 각도는 반시계(CCW) 방향이 양수.
-  * px_per_cm은 매 프레임 ArUco 로봇 마커의 실제 픽셀 크기로부터 추정한다.
-    (마커가 안 보이면 아래 DEFAULT_PX_PER_CM으로 폴백)
+  * 월드 좌표는 보정된 테이블 평면의 cm이다. 원점은 테이블 중심,
+    X는 오른쪽, Y는 위쪽이며 양의 각도는 반시계(CCW) 방향이다.
+  * pixel↔TABLE Homography는 calibration/table_calibration.json에서 로드한다.
+    파일·프레임이 유효하지 않으면 이동 명령은 STOP이다.
 """
 
 # =========================================================
@@ -30,8 +27,6 @@ TARGET_FPS = 30
 # (반전하면 월드 좌표계가 왼손계가 되어 heading/회전 방향이 전부 뒤집힌다)
 FLIP_HORIZONTAL = False
 
-# 마커가 안 잡힐 때 쓸 기본 스케일. 처음 한 번 실측해서 맞춰둘 것.
-DEFAULT_PX_PER_CM = 8.0
 TABLE_CALIBRATION_PATH = "calibration/table_calibration.json"
 CAMERA_FRAME_STALE_S = 0.5
 CALIBRATION_MAX_RMS_CM = 1.0
