@@ -68,6 +68,19 @@ def test_missing_and_resolution_mismatch_are_invalid():
         path.unlink(missing_ok=True)
 
 
+def test_high_reprojection_error_is_invalid_at_load():
+    path = ROOT / "tests" / "_generated_bad_quality_calibration.json"
+    try:
+        calibration().save(path)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["quality"]["rms_error_cm"] = 24.4
+        data["quality"]["max_error_cm"] = 33.1
+        path.write_text(json.dumps(data), encoding="utf-8")
+        assert not TableCalibration.load_optional(path, (1280, 720)).valid
+    finally:
+        path.unlink(missing_ok=True)
+
+
 def test_example_calibration_cannot_enable_motion():
     example = ROOT / "calibration" / "table_calibration.example.json"
     assert not TableCalibration.load_optional(example, (1280, 720)).valid

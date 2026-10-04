@@ -114,6 +114,22 @@ def test_two_hands_select_closest_to_id1_and_keep_trigger():
     assert evidence.trigger_wrist_x_cm == 25 and evidence.distance_cm == 5
 
 
+def test_out_of_frame_hand_wrist_cannot_trigger_risk():
+    cup = SimpleNamespace(x_cm=0, y_cm=0)
+    hands = SimpleNamespace(hands=[SimpleNamespace(
+        wrist_x_cm=0, wrist_y_cm=0, px=[(1336, 240)], handedness="Left")])
+    human, source = _wrist_inputs(hands, None, cup, frame_size=(640, 480))
+    assert human is None and source == "NONE"
+
+
+def test_out_of_frame_pose_fallback_cannot_trigger_risk():
+    cup = SimpleNamespace(x_cm=0, y_cm=0)
+    pose = SimpleNamespace(wrists=[SimpleNamespace(
+        x_cm=0, y_cm=0, px=(-10, 240))])
+    human, source = _wrist_inputs(None, pose, cup, frame_size=(640, 480))
+    assert human is None and source == "NONE"
+
+
 def test_hand_landmarker_wrist_uses_actual_640x480_frame_shape():
     from shared_ai.hand_tracker import HandTracker
 

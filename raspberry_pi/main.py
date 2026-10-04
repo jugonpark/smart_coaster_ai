@@ -35,8 +35,12 @@ def _build_detector():
         return None
 
 
-def _wrist_inputs(hands, pose, cup):
+def _wrist_inputs(hands, pose, cup, frame_size=None):
     """Use current-frame HandLandmarker wrists; Pose is only a fallback."""
+    def in_frame(px):
+        return (frame_size is None or
+                (0 <= px[0] < frame_size[0] and 0 <= px[1] < frame_size[1]))
+
     candidates = []
     for hand in getattr(hands, "hands", ()) if hands is not None else ():
         pixels = getattr(hand, "px", ())
@@ -46,7 +50,8 @@ def _wrist_inputs(hands, pose, cup):
             px = tuple(pixels[0])  # HandLandmarker landmark 0 = WRIST.
             point = SimpleNamespace(x_cm=float(hand.wrist_x_cm),
                                     y_cm=float(hand.wrist_y_cm), px=px)
-            if not all(math.isfinite(v) for v in (point.x_cm, point.y_cm, *px)):
+            if (not all(math.isfinite(v) for v in (point.x_cm, point.y_cm, *px))
+                    or not in_frame(px)):
                 continue
         except (AttributeError, TypeError, ValueError):
             continue
@@ -68,7 +73,15 @@ def _wrist_inputs(hands, pose, cup):
                                 wrists=[point for _, point in selected])
         return human, "HAND"
     if pose is not None and getattr(pose, "wrists", ()):
-        return pose, "POSE"
+        wrists = []
+        for joint in pose.wrists:
+            px = getattr(joint, "px", None)
+            if (px is not None and len(px) == 2 and
+                    all(math.isfinite(v) for v in (joint.x_cm, joint.y_cm, *px))
+                    and in_frame(px)):
+                wrists.append(joint)
+        if wrists:
+            return SimpleNamespace(wrists=wrists), "POSE"
     return None, "NONE"
 
 
@@ -180,7 +193,8 @@ def perception_step(camera, world_frame, robot_tracker, detector, radar, fusion,
                 except Exception as exc:
                     print(f"[POSE] inference failed: {exc}")
                     pose = None
-                human, wrist_source = _wrist_inputs(hands, pose, cup)
+                human, wrist_source = _wrist_inputs(
+                    hands, pose, cup, frame_size=(frame.shape[1], frame.shape[0]))
                 try:
                     gaze = (gaze_tracker.process(rgb, world_frame,
                                 target_cm=(cup.x_cm, cup.y_cm)) if gaze_tracker else None)

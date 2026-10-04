@@ -186,7 +186,8 @@ def test_current_frame_markers_and_wrist_reach_worldstate():
     camera = SimpleNamespace(last_ok_t=time.monotonic(), read=lambda: (True, frame))
     radar = SimpleNamespace(read=lambda: parse_fake_packet(
         json.dumps({"targets": []}), received_at=time.monotonic()))
-    human = SimpleNamespace(wrists=[SimpleNamespace(x_cm=33.45, y_cm=25.55)])
+    human = SimpleNamespace(wrists=[SimpleNamespace(
+        x_cm=33.45, y_cm=25.55, px=(334.5, 224.5))])
     pose = SimpleNamespace(process=lambda rgb, world: human)
     shared = SharedState()
     assert perception_step(camera, world_frame, RobotTracker(), None, radar,

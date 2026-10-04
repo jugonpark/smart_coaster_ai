@@ -55,6 +55,8 @@ class MarkerDefinition:
 
 class TableCalibration:
     VERSION = 1
+    MAX_RMS_ERROR_CM = 1.0
+    MAX_ERROR_CM = 2.0
 
     def __init__(self, image_width: int, image_height: int,
                  H_image_to_table=None, H_table_to_image=None,
@@ -229,6 +231,10 @@ class TableCalibration:
                      aruco_dictionary=data.get("aruco_dictionary", "DICT_4X4_50"),
                      created_at=data.get("created_at"),
                      correspondence_count=quality.get("correspondence_count", 0))
+        if (result.rms_error_cm is None or result.max_error_cm is None or
+                result.rms_error_cm > cls.MAX_RMS_ERROR_CM or
+                result.max_error_cm > cls.MAX_ERROR_CM):
+            raise ValueError("calibration reprojection error exceeds RMS/MAX limits")
         if runtime_resolution and not result.matches_resolution(*runtime_resolution):
             return cls.invalid(*runtime_resolution, reason="calibration resolution mismatch")
         return result
