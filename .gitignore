@@ -25,3 +25,7 @@ markers/
 
 # 위기 상황 스크린샷
 incidents/
+
+# Device-specific table measurements and fit.
+calibration/table_layout.json
+calibration/table_calibration.json

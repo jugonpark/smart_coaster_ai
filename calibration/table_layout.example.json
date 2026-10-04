@@ -1,0 +1,11 @@
+{
+  "table_width_cm": 65.0,
+  "table_height_cm": 40.0,
+  "aruco_dictionary": "DICT_4X4_50",
+  "markers": [
+    {"id": 41, "x_cm": -29.5, "y_cm": 17.0, "size_cm": 5.0, "orientation_deg": 0.0},
+    {"id": 42, "x_cm": 29.5, "y_cm": 17.0, "size_cm": 5.0, "orientation_deg": 0.0},
+    {"id": 43, "x_cm": 29.5, "y_cm": -17.0, "size_cm": 5.0, "orientation_deg": 0.0},
+    {"id": 44, "x_cm": -29.5, "y_cm": -17.0, "size_cm": 5.0, "orientation_deg": 0.0}
+  ]
+}
