@@ -36,6 +36,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
 
 import cv2
+import numpy as np
 
 import config
 from comm import UdpSender
@@ -50,7 +51,7 @@ from perception import (
     PoseTracker,
     RobotTracker,
 )
-from perception.table_drawing import cv_points, project_vector
+from perception.table_drawing import cv_points, project_circle, project_vector
 from planning import PotentialField, heading_command, world_to_robot
 from safety import IncidentLogger
 from ui import SettingsPanel, load_tuning
@@ -138,7 +139,9 @@ def draw_hud(frame, world, robot, cup, obstacles, human, risk, field,
 
     # --- 컵 적재 표시 (로봇 위치에 링) ---
     if cup_on_robot and robot.detected:
-        cv2.circle(frame, (int(robot.px[0]), int(robot.px[1])), 26, (0, 255, 0), 3)
+        ring = np.asarray(cv_points(project_circle(
+            world, robot.x_cm, robot.y_cm, 4.0)), dtype=np.int32)
+        cv2.polylines(frame, [ring.reshape(-1, 1, 2)], True, (0, 255, 0), 3)
 
     # --- 속도 벡터 (월드 -> 픽셀) ---
     if config.DRAW_FIELD_VECTOR and robot.detected and field.speed > 0.5:
