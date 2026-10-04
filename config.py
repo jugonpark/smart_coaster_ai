@@ -34,6 +34,8 @@ FLIP_HORIZONTAL = False
 DEFAULT_PX_PER_CM = 8.0
 TABLE_CALIBRATION_PATH = "calibration/table_calibration.json"
 CAMERA_FRAME_STALE_S = 0.5
+CALIBRATION_MAX_RMS_CM = 1.0
+CALIBRATION_MAX_ERROR_CM = 2.0
 
 # =========================================================
 # 2) 인식 계층 - YOLO (Roboflow 학습 모델)

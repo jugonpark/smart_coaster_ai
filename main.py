@@ -94,6 +94,15 @@ def draw_settings_button(frame, hovered: bool) -> None:
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
 
+def guard_world_or_stop(world, sender, planner) -> bool:
+    """Stop before perception when the current decoded frame is uncalibrated."""
+    if world.can_send_motion():
+        return True
+    planner.reset()
+    sender.send(0, 0, 0, "STOP", force=True)
+    return False
+
+
 def draw_hud(frame, world, robot, cup, obstacles, human, risk, field,
              vx_r, vy_r, w, status, fps, cup_on_robot=False, link=""):
     """디버그 오버레이."""
@@ -224,7 +233,7 @@ def main() -> None:
 
     risk_eval = RiskEvaluator()
     field_planner = PotentialField()
-    sender = UdpSender()
+    sender = UdpSender(allow_motion=camera.world.can_send_motion)
     panel = SettingsPanel()
     incident_logger = IncidentLogger()
 
@@ -232,6 +241,7 @@ def main() -> None:
     fps = 0.0
     last_frame_t = time.time()
     last_print_t = 0.0
+    last_invalid_reason = None
 
     # 마우스로 SETTINGS 버튼을 누를 수 있게 한다.
     mouse_state = {"hover": False, "rect": button_rect(config.FRAME_WIDTH)}
@@ -253,6 +263,7 @@ def main() -> None:
             ok, frame = camera.read()
             if not ok:
                 print("[경고] 프레임을 읽지 못했습니다. 재시도합니다.")
+                field_planner.reset()
                 sender.send(0, 0, 0, "STOP", force=True)
                 time.sleep(0.05)
                 continue
@@ -264,11 +275,28 @@ def main() -> None:
             last_frame_t = now
 
             world = camera.world
+            if not guard_world_or_stop(world, sender, field_planner):
+                if world.invalid_reason != last_invalid_reason:
+                    print(f"[CALIBRATION] STOP: {world.invalid_reason}")
+                    last_invalid_reason = world.invalid_reason
+                marker_detector._seen.clear()
+                if yolo_detector is not None:
+                    yolo_detector._cached.clear()
+                robot_tracker.reset()
+                risk_eval = RiskEvaluator()
+                cup_on_robot_state["last_true_t"] = -1e9
+                if config.SHOW_WINDOW:
+                    cv2.putText(frame, "CALIBRATION INVALID - STOP", (20, 40),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    cv2.imshow("D.I.G Pipeline", frame)
+                    if cv2.waitKey(1) & 0xFF in (ord('q'), 27):
+                        break
+                continue
+            last_invalid_reason = None
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             # ---------------- [1] 인식 계층 ----------------
-            # ArUco를 먼저 처리해야 px_per_cm 스케일이 갱신되고,
-            # 뒤이은 YOLO/Pose의 월드 변환이 올바른 스케일을 쓴다.
+            # 모든 인식기가 같은 TABLE Homography로 좌표를 변환한다.
             # 마커는 한 번만 스캔해서 로봇 추적과 물체 검출이 나눠 쓴다.
             scan = scanner.scan(frame)
             robot = robot_tracker.process(frame, world, scan)

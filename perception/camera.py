@@ -35,12 +35,17 @@ class WorldFrame:
             path = Path(calibration_path or config.TABLE_CALIBRATION_PATH)
             try:
                 self.calibration = TableCalibration.load(path)
-            except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+            except (OSError, ValueError, TypeError, KeyError, UnicodeError,
+                    json.JSONDecodeError) as exc:
                 self._load_error = f"calibration unavailable: {exc}"
+        if self.calibration is not None and (
+                self.calibration.rms_error_cm > config.CALIBRATION_MAX_RMS_CM or
+                self.calibration.max_error_cm > config.CALIBRATION_MAX_ERROR_CM):
+            self._load_error = "calibration quality exceeds RMS/MAX limits"
 
     def observe_frame(self, frame_shape, read_at=None):
         self._last_read_at = time.monotonic() if read_at is None else read_at
-        if self.calibration is None:
+        if self._load_error or self.calibration is None:
             self._frame_error = self._load_error or "calibration unavailable"
         elif (len(frame_shape) < 2 or
               (frame_shape[1], frame_shape[0]) !=

@@ -50,6 +50,9 @@ class RobotTracker:
         self._last = RobotPose()
         self._heading_offset = math.radians(config.MARKER_HEADING_OFFSET_DEG)
 
+    def reset(self) -> None:
+        self._last = RobotPose()
+
     def process(self, frame, world, scan=None) -> RobotPose:
         """scan을 넘기면 재검출하지 않는다 (프레임당 detectMarkers 1회)."""
         if scan is None:

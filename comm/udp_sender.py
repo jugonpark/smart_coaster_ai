@@ -32,6 +32,8 @@ ESP32 주소 찾기
 
 from __future__ import annotations
 
+from typing import Callable
+
 import json
 import math
 import random
@@ -80,7 +82,9 @@ def clamp_to_firmware(vx: float, vy: float, w: float) -> tuple[float, float, flo
 
 
 class UdpSender:
-    def __init__(self, ip: str | None = None, port: int | None = None) -> None:
+    def __init__(self, ip: str | None = None, port: int | None = None,
+                 allow_motion: Callable[[], bool] | None = None) -> None:
+        self.allow_motion = allow_motion
         self.port = port or config.ESP32_PORT
         self.esp_ip: str | None = ip or config.ESP32_IP
         self.auto_discover = self.esp_ip is None
@@ -178,6 +182,15 @@ class UdpSender:
         실제로 보냈으면 패킷을, 건너뛰었으면 None을 반환한다.
         """
         now = time.time()
+        if status != "STOP" and self.allow_motion is not None:
+            try:
+                permitted = bool(self.allow_motion())
+            except Exception:
+                permitted = False
+            if not permitted:
+                vx = vy = w = 0.0
+                status = "STOP"
+                force = True
         self.poll()
 
         if self.esp_ip is None:
