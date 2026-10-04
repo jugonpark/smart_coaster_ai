@@ -72,7 +72,8 @@ MotionUpdateResult updateMotionState(
     const float wheelDeltaCm[robot_config::MOTOR_COUNT], bool encoderValid,
     float dtSec);
 void computeLimitedWheelTargets(float dtSec);
-void runWheelPid(float dtSec);
+// False means a commanded wheel had no encoder counts after one bounded assist.
+bool runWheelPid(float dtSec);
 void cancelMotionImmediate(MotionState finalState = MotionState::STOPPED);
 void resetMotionAfterFault();
 

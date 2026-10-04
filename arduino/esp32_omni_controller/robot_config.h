@@ -63,6 +63,10 @@ constexpr int PWM_MAX = 255;
 constexpr uint32_t DIRECTION_DEADTIME_US = 100U;
 constexpr int PWM_DEADZONE_POS[MOTOR_COUNT] = {0, 0, 0};
 constexpr int PWM_DEADZONE_NEG[MOTOR_COUNT] = {0, 0, 0};
+constexpr float WHEEL_START_ASSIST_AFTER_SEC = 0.15f;
+constexpr float WHEEL_START_ASSIST_DURATION_SEC = 0.08f;
+constexpr float WHEEL_STALL_TIMEOUT_SEC = 0.50f;
+constexpr int WHEEL_START_ASSIST_PWM = 80;
 
 // Preserved wheel-speed PID core settings.
 constexpr float PID_KP = 2.6f;
@@ -72,14 +76,17 @@ constexpr bool ENABLE_FEED_FORWARD = true;
 constexpr uint8_t FF_POINT_COUNT = 7U;
 constexpr float FF_SPEED_CM_S[FF_POINT_COUNT] = {
     0.0f, 2.5f, 5.0f, 7.5f, 10.0f, 12.5f, 15.0f};
+// Measured with the wheels raised; see calibration/motor_pwm_samples.csv.
+// M2 at 2.5 cm/s was lowered after closed-loop tests showed overspeed.
+// Each row is a motor and each column is a target wheel speed above.
 constexpr float FF_PWM_POS[MOTOR_COUNT][FF_POINT_COUNT] = {
-    {0.0f, 30.0f, 47.0f, 64.0f, 80.0f, 97.0f, 114.0f},
-    {0.0f, 27.0f, 46.0f, 61.0f, 75.0f, 98.0f, 120.0f},
-    {0.0f, 29.0f, 48.0f, 66.0f, 85.0f, 108.0f, 128.0f}};
+    {0.0f, 36.0f, 56.0f, 77.0f, 99.0f, 120.0f, 151.0f},
+    {0.0f, 45.0f, 68.0f, 90.0f, 111.0f, 129.0f, 153.0f},
+    {0.0f, 38.0f, 57.0f, 80.0f, 105.0f, 119.0f, 141.0f}};
 constexpr float FF_PWM_NEG[MOTOR_COUNT][FF_POINT_COUNT] = {
-    {0.0f, 25.0f, 45.0f, 64.0f, 80.0f, 95.0f, 112.0f},
-    {0.0f, 27.0f, 45.0f, 59.0f, 72.0f, 90.0f, 108.0f},
-    {0.0f, 29.0f, 48.0f, 69.0f, 88.0f, 125.0f, 155.0f}};
+    {0.0f, 35.0f, 56.0f, 76.0f, 97.0f, 114.0f, 131.0f},
+    {0.0f, 40.0f, 59.0f, 78.0f, 97.0f, 114.0f, 132.0f},
+    {0.0f, 35.0f, 55.0f, 75.0f, 97.0f, 116.0f, 137.0f}};
 constexpr float SPEED_FILTER_ALPHA = 0.30f;
 
 constexpr float ENCODER_JUMP_SAFETY_MARGIN = 3.0f;

@@ -15,6 +15,9 @@ float pidIntegral[MOTOR_COUNT] = {0.0f, 0.0f, 0.0f};
 float pidPreviousError[MOTOR_COUNT] = {0.0f, 0.0f, 0.0f};
 float measuredWheelSpeed[MOTOR_COUNT] = {0.0f, 0.0f, 0.0f};
 float targetWheelSpeed[MOTOR_COUNT] = {0.0f, 0.0f, 0.0f};
+float wheelNoCountSec[MOTOR_COUNT] = {0.0f, 0.0f, 0.0f};
+float wheelAssistRemainingSec[MOTOR_COUNT] = {0.0f, 0.0f, 0.0f};
+bool wheelAssistUsed[MOTOR_COUNT] = {false, false, false};
 
 namespace {
 
@@ -266,7 +269,7 @@ void computeLimitedWheelTargets(float dtSec) {
     }
 }
 
-void runWheelPid(float dtSec) {
+bool runWheelPid(float dtSec) {
     dtSec = constrain(dtSec, MIN_CONTROL_DT_SEC, MAX_CONTROL_DT_SEC);
     for (uint8_t i = 0; i < MOTOR_COUNT; ++i) {
         measuredWheelSpeed[i] = motorEncoderState.measuredWheelSpeed[i];
@@ -274,16 +277,29 @@ void runWheelPid(float dtSec) {
         if (fabsf(target) < 0.3f) {
             pidIntegral[i] = 0.0f;
             pidPreviousError[i] = 0.0f;
+            wheelNoCountSec[i] = 0.0f;
+            wheelAssistRemainingSec[i] = 0.0f;
+            wheelAssistUsed[i] = false;
             writeMotorPwm(i, 0);
             continue;
         }
 
-        float feedForward = feedForwardPwm(i, target);
-        if (fabsf(motionState.limitedVxCmS) < 0.1f &&
-            fabsf(motionState.limitedVyCmS) < 0.1f &&
-            fabsf(motionState.limitedWRadS) > 0.01f) {
-            feedForward *= 0.75f;
+        if (motorEncoderState.deltaCount[i] * target > 0.0f) {
+            wheelNoCountSec[i] = 0.0f;
+        } else {
+            wheelNoCountSec[i] += dtSec;
         }
+        if (!wheelAssistUsed[i] &&
+            wheelNoCountSec[i] >= WHEEL_START_ASSIST_AFTER_SEC) {
+            wheelAssistUsed[i] = true;
+            wheelAssistRemainingSec[i] = WHEEL_START_ASSIST_DURATION_SEC;
+        }
+        if (wheelAssistUsed[i] &&
+            wheelNoCountSec[i] >= WHEEL_STALL_TIMEOUT_SEC) {
+            return false;
+        }
+
+        const float feedForward = feedForwardPwm(i, target);
 
         const float error = target - measuredWheelSpeed[i];
         const float p = PID_KP * error;
@@ -300,6 +316,13 @@ void runWheelPid(float dtSec) {
         output = constrain(output, -(float)PWM_MAX, (float)PWM_MAX);
 
         int pwm = static_cast<int>(lroundf(output));
+        if (wheelAssistRemainingSec[i] > 0.0f) {
+            pwm = target > 0.0f ?
+                max(pwm, WHEEL_START_ASSIST_PWM) :
+                min(pwm, -WHEEL_START_ASSIST_PWM);
+            wheelAssistRemainingSec[i] = fmaxf(
+                0.0f, wheelAssistRemainingSec[i] - dtSec);
+        }
         if (pwm != 0 && pwm > 0 && pwm < PWM_DEADZONE_POS[i]) {
             pwm = PWM_DEADZONE_POS[i];
         } else if (pwm != 0 && pwm < 0 && -pwm < PWM_DEADZONE_NEG[i]) {
@@ -307,12 +330,16 @@ void runWheelPid(float dtSec) {
         }
         writeMotorPwm(i, pwm);
     }
+    return true;
 }
 
 void cancelMotionImmediate(MotionState finalState) {
     stopAllMotorsImmediate();
     for (uint8_t i = 0; i < MOTOR_COUNT; ++i) {
         targetWheelSpeed[i] = 0.0f;
+        wheelNoCountSec[i] = 0.0f;
+        wheelAssistRemainingSec[i] = 0.0f;
+        wheelAssistUsed[i] = false;
     }
     resetPidState();
     motionState.desiredVxCmS = 0.0f;

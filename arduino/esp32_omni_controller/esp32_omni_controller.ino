@@ -487,7 +487,11 @@ void runControlTickIfDue() {
 
     computeLimitedWheelTargets(
         constrain(dtSec, MIN_CONTROL_DT_SEC, MAX_CONTROL_DT_SEC));
-    runWheelPid(constrain(dtSec, MIN_CONTROL_DT_SEC, MAX_CONTROL_DT_SEC));
+    if (!runWheelPid(constrain(dtSec, MIN_CONTROL_DT_SEC, MAX_CONTROL_DT_SEC))) {
+        raiseFault(FaultCode::MOTOR_STALL, nowMs, commandMailbox,
+                   commandAcceptance);
+        return;
+    }
     commandAcceptance.moving = isMoving();
 }
 

@@ -96,6 +96,23 @@ class MoveToolTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "ESP32 fault"):
                 test.run_move(8, 0, 0, 10, 10)
 
+    def test_stopped_without_goal_reports_motion_diagnostics(self):
+        test = tool.MoveTest.__new__(tool.MoveTest)
+        test.session_id, test.motion_id, test.seq = 9, 7, 1
+        test.last_telemetry_at = 0.0
+        test.send = lambda **kwargs: 2
+        stopped = {**telemetry(), "state": "STOPPED", "goal_active": False,
+                   "goal_progress_cm": 3.4, "remaining_cm": -0.4,
+                   "overshoot_cm": 0.4}
+        test.receive = lambda: [telemetry(), stopped]
+        clock = iter(i * 0.001 for i in range(200000))
+        with patch.object(tool.time, "monotonic", side_effect=lambda: next(clock)):
+            with self.assertRaisesRegex(RuntimeError, "stopped without goal_reached") as caught:
+                test.run_move(8, 0, 0, 3, 10)
+        self.assertIn("progress=3.4", str(caught.exception))
+        self.assertIn("remaining=-0.4", str(caught.exception))
+        self.assertIn("overshoot=0.4", str(caught.exception))
+
     def test_main_finally_stops_on_success_fault_timeout_and_ctrl_c(self):
         instances = []
 

@@ -74,6 +74,7 @@ const char *faultCodeName(FaultCode fault) {
         case FaultCode::ODOMETRY_INVALID: return "ODOMETRY_INVALID";
         case FaultCode::PATH_DEVIATION: return "PATH_DEVIATION";
         case FaultCode::CONTROL_TIMING: return "CONTROL_TIMING";
+        case FaultCode::MOTOR_STALL: return "MOTOR_STALL";
     }
     return "CONTROL_TIMING";
 }

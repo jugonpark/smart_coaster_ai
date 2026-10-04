@@ -18,6 +18,7 @@ enum class FaultCode : uint8_t {
     ODOMETRY_INVALID,
     PATH_DEVIATION,
     CONTROL_TIMING,
+    MOTOR_STALL,
 };
 
 enum class ControllerMode : uint8_t {

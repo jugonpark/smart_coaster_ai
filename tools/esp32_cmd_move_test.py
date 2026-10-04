@@ -187,6 +187,7 @@ class MoveTest:
         deadline = time.monotonic() + timeout
         next_send = time.monotonic()
         first_move_seq: int | None = None
+        saw_active = False
         while time.monotonic() < deadline:
             now = time.monotonic()
             if now >= next_send:
@@ -205,6 +206,15 @@ class MoveTest:
                         raise RuntimeError(f"wrong motion_id: {payload['motion_id']}")
                     if payload["goal_reached"]:
                         return True
+                    if payload["state"] in ("DISTANCE_ACTIVE", "DISTANCE_BRAKING"):
+                        saw_active = True
+                    elif saw_active and payload["state"] == "STOPPED":
+                        raise RuntimeError(
+                            "ESP32 stopped without goal_reached: "
+                            f"progress={payload.get('goal_progress_cm')}cm "
+                            f"remaining={payload.get('remaining_cm')}cm "
+                            f"overshoot={payload.get('overshoot_cm')}cm "
+                            f"encoder_count={payload['encoder_count']}")
                 if self.last_telemetry_at is not None and (
                         time.monotonic() - self.last_telemetry_at > TELEMETRY_TIMEOUT_SECONDS):
                     raise TimeoutError("telemetry timeout")
